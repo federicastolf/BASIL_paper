@@ -105,6 +105,9 @@ mean((Lambda_outer_qs[1,,]<Lambda_0_outer[subsample_index, subsample_index]) &
        (Lambda_outer_qs[2,,]>Lambda_0_outer[subsample_index, subsample_index]))
 
 
+# estimate k
+est_k <- estimate_latent_dimension(Y, k_max=20)
+
 
 
 

@@ -53,7 +53,6 @@ compute_point_estimates <- function(
   D_perp <- diag(as.vector(svd_Y$d[-c(1:k)]))
   V_perp <- svd_Y$v[,-c(1:k)]
   
-  
   #P_C <- C %*% solve(crossprod(C)) %*% t(C)
   tCCt <- crossprod(C)
   s_cross_C <- svd(tCCt)
@@ -66,18 +65,20 @@ compute_point_estimates <- function(
   
   Y_P <- Y %*% P_C
   Y_Q <- Y - Y_P
-  
   V_D <- V %*% D
   P_V_D <- P_C %*% V_D
   Q_V_D <- V_D - P_V_D 
   D_Vt_perp <- D_perp %*% t(V_perp)
   D_Vt_perp_P <-  D_Vt_perp %*% P_C
+  
+  # prior variances hyperparms
   tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) )
   print(paste('tau_C  = ', tau_C))
   tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) )
   print(paste('tau_N  = ', tau_N))
   
-  M<- sqrt(n) * U
+  # point estimates
+  M <- sqrt(n) * U
   Lambda_C <- (P_V_D) * sqrt(n) / (n + 1/tau_C)
   Lambda_N <- (Q_V_D) * sqrt(n) / (n + 1/tau_N)
   sigma_sq <- (v0 * sigma_sq0 + sum((Y-tcrossprod(M, Lambda_C + Lambda_N) )^2) ) /
@@ -287,6 +288,8 @@ compute_point_estimates_2 <- function(
     it <- it + 1
   }
   
+  return(list(M=M, Lambda_C=Lambda_C, Lambda_N=Lambda_N, sigma_sq=sigma_sq,
+              tau_C=tau_C, tau_N=tau_N, k=k))
   
 }
 
