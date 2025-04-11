@@ -12,6 +12,8 @@ compute_jic <- function(Y, svd_Y, k){
   n <- nrow(Y); p <- ncol(Y) 
   minint <- min(n ,p)
   maxint <- max(n, p)
+
+  
   M <- sqrt(n)*as.matrix(svd_Y$u[,1:k])
   Lambda <- 1/sqrt(n)* as.matrix(svd_Y$v[,1:k]) %*% diag(svd_Y$d[1:k], k, k)
   
@@ -34,6 +36,8 @@ compute_jic <- function(Y, svd_Y, k){
 
 compute_point_estimates <- function(
     Y, C, k = NA, k_max = 50, v0 = 1, sigma_sq0 = 1){
+  
+  n <- nrow(Y); p <- ncol(Y) 
   
   # estimate latent dimension if unknown
   if(is.na(k)){
