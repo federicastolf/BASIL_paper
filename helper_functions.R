@@ -312,3 +312,46 @@ sample_outer_products <- function(Lambda_samples){
 }
 
 
+predict_Y_from_factors <- function(M_samples, Lambda_samples, sigma_sq_samples){
+  n <- dim(M_samples)[1]
+  n_MC <- dim(M_samples)[3]
+  p <- dim(Lambda_samples)[1]
+  
+  Y_pred_samples <- array(NA, dim=c(n, p, n_MC))
+  Y_mean <- matrix(0, n, p)
+  
+  for(t in 1:n_MC){
+    Y_mean_t <- M_samples[,,t] %*% t(Lambda_samples[,,t]) 
+    Y_sample_t <- Y_mean_t + sqrt(sigma_sq_samples[t]) * matrix(rnorm(n*p), ncol=p)
+    Y_mean <- Y_mean + Y_mean_t
+  }
+  Y_mean <- Y_mean / n_MC
+  return(list(Y_pred_mean = Y_mean, Y_pred_samples = Y_pred_samples))
+} 
+
+predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
+  # params samples
+  params_posterior_samples <- compute_posterior_samples_cc(
+    Y_train, fit$Lambda_C, fit$Lambda_N, fit$tau_C, 
+    fit$tau_N, fit$sigma_sq, P_C
+  )
+  # latent factors
+  M_posterior_samples <- samples_etas(
+    Y_test[,impute_set], params_posterior_samples$Lambda_samples[impute_set,,], 
+    params_posterior_samples$sigma_sq_samples)
+  
+  # get predictions
+  predictions <- predict_Y(
+    M_posterior_samples$M_samples, 
+    params_posterior_samples$Lambda_samples[-impute_set,,], 
+    params_posterior_samples$sigma_sq_samples
+  )
+  return(list(list(Y_pred_mean = predictions$Y_mean, Y_pred_samples = predictions$Y_pred_samples)))
+} 
+
+
+
+
+
+
+
