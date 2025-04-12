@@ -1,4 +1,9 @@
 
+library(Rcpp)
+library(RcppArmadillo)
+
+sourceCpp('helper_functions.cpp')
+
 estimate_latent_dimension <- function(Y, k_max){
   svd_Y <- svd(Y)
   n <- nrow(Y)
@@ -93,26 +98,13 @@ compute_point_estimates <- function(
 }
 
 
-compute_B <- function(Lambda_hat, sigma_sq_hat){
-  p <- nrow(Lambda_hat)
-  Lambda_hat_outer <- tcrossprod(Lambda_hat)
-  B <- matrix(NA, p, p)
-  for(j in 1:(p-1)){
-    for(l in (j+1):p){
-      B[j,l] <- sqrt(1 + (Lambda_hat_outer[j,j] * Lambda_hat_outer[l,l] + Lambda_hat_outer[j,l]^2) /
-                       (sigma_sq_hat * (Lambda_hat_outer[j,j] + Lambda_hat_outer[l,l])))
-      B[l,j] <- B[j,l]
-    }
-    B[j,j]  <- sqrt(1 + Lambda_hat_outer[j,j] / (2*sigma_sq_hat))
-  }
-  B[p,p]  <- sqrt(1 + Lambda_hat_outer[p,p] / (2*sigma_sq_hat))
-}
+
 
 
 compute_posterior_samples <- function(
     Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, U_C,
     v0=1, sigma_sq_0=1, n_MC=100
-){
+    ){
   
   n <- nrow(Y)
   p <- ncol(Y)
@@ -149,25 +141,17 @@ compute_posterior_samples <- function(
 }
 
 
+
 compute_posterior_samples_cc <- function(
     Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C,
     v0=1, sigma_sq_0=1, n_MC=100
-    ){
+){
   
   n <- nrow(Y)
   p <- ncol(Y)
   k <- ncol(Lambda_C)
-
+  
   Q_C <- diag(1, p, p) - P_C
-  
-  SST <- sum(Y^2)
-  SSE <- (n + 1/tau_C) * sum(Lambda_C^2) + (n + 1/tau_N) * sum(Lambda_N^2)
-  sigma_sq_save <- rep(NA, n_MC)
-  v_n <- v0 + n*p
-  gamma_n <- v0*sigma_sq_0 + SST - SSE
-  sigma_sq_save <- 1/rgamma(n_MC, v_n/2, gamma_n/2)
-  
-  Lambda_save <- array(NA, dim=c(p, k, n_MC))
   
   B_C <- compute_B(Lambda_C, sigma_sq)
   rho_C <- mean(B_C[lower.tri(B_C, diag = T)])
@@ -178,16 +162,17 @@ compute_posterior_samples_cc <- function(
   rho_N <- mean(B_N[lower.tri(B_N, diag = T)])
   print(paste('rho_N = ', rho_N))
   
-  #E <- array(rnorm(p*k*n_MC), dim=c(p, k, n_MC))
-  for(t in 1:n_MC){
-    E_C <- matrix(rnorm(p*k), ncol=k) * sqrt(sigma_sq_save[t] / (n + 1/tau_C)) * rho_C
-    E_C <- P_C %*% E_C
-    E_N <- matrix(rnorm(p*k), ncol=k) * sqrt(sigma_sq_save[t] / (n + 1/tau_N)) * rho_N
-    E_N <- Q_C %*% E_N
-    Lambda_save[,,t] <- Lambda_C + Lambda_N + E_C + E_N
-  }
-  return(list(Lambda_samples = Lambda_save, sigma_sq_samples = sigma_sq_save))
+  
+  post_sample <- posterior_samples(
+    Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C, v0, sigma_sq_0, n_MC, 
+    rho_C, rho_N)
+  
+  
+  
+  return(list(Lambda_samples = post_sample$Lambda_samples, 
+              sigma_sq_samples = post_sample$sigma_sq_samples))
 }
+
 
 
 samples_etas <- function(Y, Lambda_samples, sigma_sq_samples){
@@ -216,20 +201,6 @@ samples_etas <- function(Y, Lambda_samples, sigma_sq_samples){
 }
 
 
-
-
-sample_outer_products <- function(Lambda_samples){
-  p <- dim(Lambda_samples)[1]
-  k <- dim(Lambda_samples)[2]
-  n_MC <- dim(Lambda_samples)[3]
-  
-  Lambda_outer_samples <- array(NA, dim=c(p, p, n_MC))
-  
-  for(t in 1:n_MC){
-    Lambda_outer_samples[,,t] <- tcrossprod(Lambda_samples[,,t])
-  }
-  return(Lambda_outer_samples)
-}
 
 
 predict_Y_from_factors <- function(M_samples, Lambda_samples, sigma_sq_samples){
@@ -269,7 +240,7 @@ predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
     params_posterior_samples$Lambda_samples[-impute_set,,], 
     params_posterior_samples$sigma_sq_samples
   )
-  return(list(Y_pred_mean = predictions$Y_mean, 
+  return(list(Y_pred_mean = predictions$Y_pred_mean, 
               Y_pred_samples = predictions$Y_pred_samples))
 } 
 
