@@ -175,33 +175,6 @@ compute_posterior_samples_cc <- function(
 
 
 
-samples_etas <- function(Y, Lambda_samples, sigma_sq_samples){
-  
-  n <- nrow(Y)
-  p <- ncol(Y)
-  k <- dim(Lambda_samples)[2]
-  n_MC <- dim(Lambda_samples)[3]
-  M_mean <- matrix(0, n, k)
-  M_save <- array(0, dim=c(n, k, n_MC))
-  
-  for(t in 1:n_MC){
-    sigma_sq <- sigma_sq_samples[t]
-    Lambda <- Lambda_samples[,,t]
-    prec_mat <- diag(1, k, k) + 1/sigma_sq * (crossprod(Lambda))
-    svd_prec <- svd(prec_mat)
-    var_sq <-  svd_prec$u %*% diag(sqrt(1/svd_prec$d)) %*% t(svd_prec$u)
-    var_mat <-  svd_prec$u %*% diag(1/svd_prec$d) %*% t(svd_prec$u)
-    mean_t <- 1/sigma_sq * Y %*% Lambda %*% var_mat
-    M_mean <- M_mean + mean_t
-    M_save[,,t] <- mean_t + matrix(rnorm(n*k), ncol=k) %*% var_sq
-  }
-  M_mean <- M_mean/n_MC
-  
-  return(list(M_mean = M_mean, M_samples = M_save))
-}
-
-
-
 
 predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
   
@@ -223,8 +196,8 @@ predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
     params_posterior_samples$Lambda_samples[-impute_set,,], 
     params_posterior_samples$sigma_sq_samples
   )
-  return(list(Y_pred_mean = predictions$Y_pred_mean, 
-              Y_pred_samples = predictions$Y_pred_samples))
+  return(list(Y_pred_mean = predictions$Y_mean, 
+              Y_pred_samples = predictions$Y_samples))
 } 
 
 
