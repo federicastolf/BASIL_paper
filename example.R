@@ -81,12 +81,14 @@ print(norm(tcrossprod(Lambda_hat_fable) - Lambda_0_outer, type='F') / norm(Lambd
 # UQ 
 
 ## sample loadings given M = M_hat
-params_posterior_samples <- compute_posterior_samples_cc_2(
+params_posterior_samples <- compute_posterior_samples_cc(
   Y, fit$Lambda_C, fit$Lambda_N, fit$tau_C, fit$tau_N, fit$sigma_sq, P_C
 )
 
 # latent factors
-M_posterior_samples <- samples_etas(Y, params_posterior_samples$Lambda_samples, params_posterior_samples$sigma_sq_samples)
+M_posterior_samples <- sample_latent_factors(Y, params_posterior_samples$Lambda_samples, params_posterior_samples$sigma_sq_samples)
+
+
 
 ## posterior mean of latent factors
 M_post_mean <- M_posterior_samples$M_mean 
@@ -106,7 +108,7 @@ p_hat <- procrustes(M_0, M_hat)
 sqrt(sum((M_0 - p_hat$Yrot)^2) / (n*k))
 
 # covariance components
-subsample_index <- 1:500
+subsample_index <- 1:200
 
 Lambda_outer_posterior_samples <- sample_Lambda_outer(
   params_posterior_samples$Lambda_samples[subsample_index,,])

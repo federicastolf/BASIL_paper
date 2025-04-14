@@ -1,4 +1,4 @@
-#include <RcppArmadillo.h>
+#include <C:/Users/mauri/AppData/Local/R/win-library/4.3/RcppArmadillo/include/RcppArmadillo.h>
 #include <Rcpp.h>
 
 
@@ -100,6 +100,102 @@ arma::cube sample_Lambda_outer(arma::cube Lambda_samples){
   }
   
   return Lambda_outer_samples;
+}
+
+
+
+// [[Rcpp::export]]
+List sample_latent_factors(
+    arma::mat Y, arma::cube Lambda_samples, arma::vec sigma_sq_samples){
+  
+  int n_MC = Lambda_samples.n_slices;
+  int k = Lambda_samples.n_cols;
+  int p = Lambda_samples.n_rows;
+  int n = Y.n_rows;
+  
+  arma::mat M_mean(n, k);
+  arma::cube M_samples(n, k, n_MC);
+  
+  double sigma_sq;
+  arma::mat Lambda(p, k);
+  arma::mat prec_mat(k, k);
+  
+  arma::mat U;
+  arma::vec d;
+  arma::mat V;
+  
+  arma::vec inv_d;
+  arma::vec sqrt_inv_d;
+  
+  arma::mat var_mat(k,k);
+  arma::mat var_sqrt(k,k);
+  
+  arma::mat mean_t(n, k);
+  arma::mat noise(n, k);
+  
+  for(int s=0; s<n_MC; ++s) {
+    
+    sigma_sq = sigma_sq_samples(s);
+    Lambda = Lambda_samples.slice(s);
+    prec_mat = arma::eye(k,k) + 1/sigma_sq * (Lambda.t() * Lambda);
+    
+    svd(U, d, V, prec_mat);
+    
+    // var_mat = U * diag(1/d) * U^T
+    inv_d = 1.0 / d;
+    var_mat = U * diagmat(inv_d) * U.t();
+    
+    // var_sqrt = U * diag(sqrt(1/d)) * U^T
+    sqrt_inv_d = sqrt(1.0 / d);
+    var_sqrt = U * diagmat(sqrt_inv_d) * U.t();
+    
+    // mean_t = (1 / sigma_sq) * Y * Lambda * var_mat
+    mean_t = (1.0 / sigma_sq) * Y * Lambda * var_mat;
+    
+    // Update M_mean
+    M_mean += mean_t;
+    
+    // Generate Gaussian noise
+    noise = arma::randn(n, k);
+    
+    // Add noise scaled by var_sq and store in cube
+    M_samples.slice(s) = mean_t + noise * var_sqrt;
+    
+  }
+  
+  M_mean = M_mean / n_MC;
+  
+  return List::create(
+    Named("M_mean") = M_mean,
+    Named("M_samples") = M_samples
+  );
+  
+}
+
+
+List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arma::vec sigma_sq_samples){
+  
+  int n_MC = Lambda_samples.n_slices;
+  int k = Lambda_samples.n_cols;
+  int p = Lambda_samples.n_rows;
+  int n = M_samples.n_rows;
+  
+  arma::mat Y_mean(n, k);
+  arma::mat Y_mean_s(n, k);
+  arma::mat Y_sample_s(n, k);
+  arma::cube Y_samples(n, k, n_MC);
+  
+  for(int s=0; s<n_MC; ++s) {
+    Y_mean_s = M_samples.slice(s) * (Lambda_samples.slice(s)).t();
+    Y_sample_s = Y_mean_s + sqrt(sigma_sq_samples(s)) * arma::randn(n, k);
+    Y_mean = Y_mean + Y_mean_s;
+  }
+  Y_mean = Y_mean / n_MC;
+  
+  return List::create(
+    Named("Y_mean") = Y_mean,
+    Named("Y_samples") = Y_samples
+  );
 }
 
 

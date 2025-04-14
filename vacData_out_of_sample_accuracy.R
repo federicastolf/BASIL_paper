@@ -1,3 +1,4 @@
+source('helper_functions.R')
 
 library(PLIER)
 
@@ -13,6 +14,7 @@ vacData = t(vacData)
 vacData = scale(vacData)
 
 C <- allPaths 
+p <- nrow(C); q <- ncol(C); 
 
 tCCt <- crossprod(C)
 s_cross_C <- svd(tCCt)
@@ -45,13 +47,17 @@ set.seed(123)
 impute_set <- sample(1:p, as.integer(0.5*p))
 
 vacData_oos_predictions <- predict_oos_Y(
-  Y_train, Y_test, impute_set, vacData_train_fit, P_C)
+  Y_train, Y_test, impute_set, vacData_train_fit, P_C
+  )
 
 sqrt(mean((Y_test[,-impute_set] - vacData_oos_predictions$Y_pred_mean)^2))
 
 dev.new()
 plot(Y_test[,-impute_set], vacData_oos_predictions$Y_pred_mean)
 abline(0, 1, col='red')
+
+
+
 
 
 
