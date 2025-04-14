@@ -180,9 +180,9 @@ List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arm
   int p = Lambda_samples.n_rows;
   int n = M_samples.n_rows;
   
-  arma::mat Y_mean(n, k);
-  arma::mat Y_mean_s(n, k);
-  arma::mat Y_sample_s(n, k);
+  arma::mat Y_mean(n, p);
+  arma::mat Y_mean_s(n, p);
+  arma::mat Y_sample_s(n, p);
   arma::cube Y_samples(n, k, n_MC);
   
   for(int s=0; s<n_MC; ++s) {
