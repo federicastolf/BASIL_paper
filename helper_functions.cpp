@@ -183,7 +183,7 @@ List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arm
   arma::mat Y_mean(n, p);
   arma::mat Y_mean_s(n, p);
   arma::mat Y_sample_s(n, p);
-  arma::cube Y_samples(n, k, n_MC);
+  arma::cube Y_samples(n, p, n_MC);
   
   for(int s=0; s<n_MC; ++s) {
     Y_mean_s = M_samples.slice(s) * (Lambda_samples.slice(s)).t();
