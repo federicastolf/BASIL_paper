@@ -172,7 +172,7 @@ List sample_latent_factors(
   
 }
 
-
+// [[Rcpp::export]]
 List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arma::vec sigma_sq_samples){
   
   int n_MC = Lambda_samples.n_slices;
@@ -187,7 +187,7 @@ List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arm
   
   for(int s=0; s<n_MC; ++s) {
     Y_mean_s = M_samples.slice(s) * (Lambda_samples.slice(s)).t();
-    Y_sample_s = Y_mean_s + sqrt(sigma_sq_samples(s)) * arma::randn(n, k);
+    Y_sample_s = Y_mean_s + sqrt(sigma_sq_samples(s)) * arma::randn(n, p);
     Y_mean = Y_mean + Y_mean_s;
   }
   Y_mean = Y_mean / n_MC;
