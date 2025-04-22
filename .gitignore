@@ -1,0 +1,8 @@
+*.RData
+*.Rhistory
+*.rds
+*.csv
+*.pdf
+*.png
+*.jpg
+*.jpeg

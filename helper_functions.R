@@ -14,6 +14,7 @@ estimate_latent_dimension <- function(Y, k_max){
 }
 
 compute_jic <- function(Y, svd_Y, k){
+  
   n <- nrow(Y); p <- ncol(Y) 
   minint <- min(n ,p)
   maxint <- max(n, p)
@@ -65,9 +66,10 @@ compute_point_estimates <- function(
   #P_C <- C %*% solve(crossprod(C)) %*% t(C)
   tCCt <- crossprod(C)
   s_cross_C <- svd(tCCt)
-  V_C <- s_cross_C$u
-  D_C <- diag(as.vector(sqrt(s_cross_C$d)))
-  D_C_inv <- diag(as.vector(1/sqrt(s_cross_C$d)))
+  q <- sum(s_cross_C$d>(0.1)^7)
+  V_C <- s_cross_C$u[,1:q]
+  D_C <- diag(as.vector(sqrt(s_cross_C$d[1:q])))
+  D_C_inv <- diag(as.vector(1/sqrt(s_cross_C$d[1:q])))
   U_C <- C %*% V_C %*% D_C_inv
   P_C <- tcrossprod(U_C)
   Q_C <- diag(1, p, p) - P_C
@@ -81,9 +83,9 @@ compute_point_estimates <- function(
   D_Vt_perp_P <-  D_Vt_perp %*% P_C
   
   # prior variances hyperparms
-  tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) )
+  tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) ) * (n-k) / n
   print(paste('tau_C  = ', tau_C))
-  tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) )
+  tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) ) * (n-k) / n
   print(paste('tau_N  = ', tau_N))
   
   # point estimates
@@ -94,7 +96,7 @@ compute_point_estimates <- function(
     (v0 + n*p -2)
   
   return(list(M=M, Lambda_C=Lambda_C, Lambda_N=Lambda_N, sigma_sq=sigma_sq,
-              tau_C=tau_C, tau_N=tau_N, k=k))
+              tau_C=tau_C, tau_N=tau_N, k=k, P_C=P_C))
 }
 
 
@@ -126,7 +128,6 @@ compute_posterior_samples <- function(
     N_C <- svd(Q_C)$u[,1:(p-q)]
   }
   
-  #E <- array(rnorm(p*k*n_MC), dim=c(p, k, n_MC))
   for(t in 1:n_MC){
     if(tau_N<tau_C){
       E <- matrix(rnorm(p*k), ncol=k) * sqrt(sigma_sq_save[t] / (n + 1/tau_N))
