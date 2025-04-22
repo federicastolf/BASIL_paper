@@ -47,3 +47,25 @@ vacData = scale(vacData)
 
 # save(vacData, allPaths, file="dataVac.Rdata")
 
+#-------------------# single-cell RNA seq from Usokin et al. #----------------#
+rm(list = ls())
+
+data("chemgenPathways")
+data("canonicalPathways")
+data("dataUsoskin")
+data("human2Mouse")
+data("cellsUsoskin")
+
+# Create the combined pathway matrix
+usoskinPath = combinePaths(canonicalPathways, chemgenPathways)
+# Map the pathway matrix to mouse names
+usoskinPath = mapPathway(usoskinPath, human2Mouse)
+
+cm = commonRows(dataUsoskin, usoskinPath)
+
+dataUsoskin = dataUsoskin[cm,]
+usoskinPath = usoskinPath[cm,] # C: 8710 x 3940
+dataUsoskin = rowNorm(dataUsoskin)
+dataUsoskin = t(dataUsoskin) # Y:622 x 8710
+
+# save(dataUsoskin, usoskinPath, file="Usoskindata.Rdata")
