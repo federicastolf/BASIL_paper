@@ -1,71 +1,78 @@
-library(msigdbr)
-library(tidyverse)
+library(FABLE)
+library(PLIER)
+
 rm(list=ls())
 
+source('helper_functions.R')
+source("simulation_wrapper.R")
 
-get_geneSetMatrix = function(p, q){
-  # msig_data = msigdbr(species = "Homo sapiens", category = "H")
-  msig_data = msigdbr(species = 'Homo sapiens', category = 'C5', subcategory = 'GO:MF')
-  # select pathways
-  gene_set = table(factor(msig_data$gene_symbol, levels = unique(msig_data$gene_symbol)),
-                   msig_data$gs_name)
-  gene_set = (gene_set > 0) * 1
-  gene_set = gene_set[,sample(c(1:q), q, replace = F)]
-  gene_set = gene_set[rowSums(gene_set) > 0,]
-  gene_set = gene_set[sample(c(1:p), p, replace = F),]
-  gene_set = gene_set[, colSums(gene_set) > 0]
+# set parameters
+Nsim = 25
+param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
+             sd_gamma = 1, sd_psi = 0.3)
+# param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 0.5, 
+#              sd_gamma = 1, sd_psi = 0.3)
   
-  # N.B. it does not ensure q is the q selected at the beginning but q_selected<=q
-  # I don't think is a problem, just put q bigger as input
+  
+set.seed(463)
+seeds_g = sample.int(9000, Nsim)
 
-  return(gene_set)
-}
+kfitBASIL = err_normBASIL = timeBASIL = rep(0, Nsim)
+kfitFABLE = err_normFABLE  = timeFABLE = rep(0, Nsim)
+kfitPLIER = err_normPLIER  = timePLIER = rep(0, Nsim)
+data_all = vector("list", Nsim)
 
+for(s in 1:Nsim){
+  #simulate data
+  datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q, 
+                        sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
+                        sd_psi = param$sd_psi, mseed = seeds_g[s], C_mispeficied = F)
+  data_all[[s]] = datas
+  Ys = datas$Y
+  Cs = datas$C
+  Lambda0_outer = datas$Lambda0_outer
+  
+  # compute BASIL
+  ptmB = proc.time()
+  est_kBASIL = estimate_latent_dimension(Ys, k_max = 50)
+  fitBASIL = compute_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
+  etmB = proc.time() - ptmB
+  timeBASIL[s] = etmB[1] + etmB[2]
+  Lambda_BASIL = fitBASIL$Lambda_C + fitBASIL$Lambda_N
+  err_normBASIL[s] = norm(tcrossprod(Lambda_BASIL) - Lambda0_outer, type='F')/
+    norm(Lambda0_outer, type='F')
+  kfitBASIL[s] = est_kBASIL$k_hat
 
-syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, C_mispeficied=F){
+  # compute FABLE
+  ptmF = proc.time()
+  fitFABLE = FABLE::PseudoPosteriorMean(Ys)
+  etmF = proc.time() - ptmF
+  timeFABLE[s] = etmF[1] + etmF[2]
+  kfitFABLE[s] = fitFABLE$estRank
+  err_normFABLE[s] = norm(fitFABLE$FABLEPostMean - Lambda0_outer, type='F')/
+    norm(Lambda0_outer, type='F')
   
-  set.seed(mseed)
-  C = get_geneSetMatrix(p, q)
-  C = unname(C)
-  q = ncol(C)
-  
-  if(C_mispeficied==T){
-    # set to zero the 20% of ones randomly selected
-    i1 = which(C==1)
-    idx0 = sample(x = i1, size = 0.2*length(i1), replace=F)
-    C[idx0] = 0
-    if(sum(colSums(C)==0)>0){
-      C = C[, -which(colSums(C)==0)]
-    }
-    if(sum(rowSums(C)==0)>0){
-      C = C[-which(rowSums(C)==0),]
-    }
-  }
-  
-  # compute P_C = C(C'C)^{-1}C' and Q_C = I_p - P_C
-  tCCt = crossprod(C)
-  s_cross_C = svd(tCCt)
-  V_C = s_cross_C$u
-  D_C = diag(as.vector(sqrt(s_cross_C$d)))
-  D_C_inv = diag(as.vector(1/sqrt(s_cross_C$d)))
-  U_C = C %*% V_C %*% D_C_inv
-  P_C = tcrossprod(U_C)
-  Q_C = diag(1, p, p) - P_C
-  
-  # factors
-  M_0 = matrix(rnorm(n*k, 0, 1), ncol=k)
-  # loadings
-  Gamma_0 = matrix(rnorm(q*k, 0, sd_gamma), ncol=k)
-  C_Gamma_0 = C %*% Gamma_0
-  Psi_0 = Q_C %*% matrix(rnorm(p*k, 0, 0.2), ncol=k)
-  Lambda_0 = C_Gamma_0 + Psi_0
-  Lambda_0_outer = tcrossprod(Lambda_0)
-  
-  # data
-  Y = M_0 %*% t(Lambda_0) + sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow=n) 
-  
-  return(list("Y"=Y, "Lambda_0_outer" = Lambda_0_outer, "C"=C))
+  # compute PLIER
+  ptmP = proc.time()
+  fitPLIER = PLIER(t(Ys), Cs, scale = F, minGenes = 1, doCrossval = T)
+  etmP = proc.time() - ptmP
+  timePLIER[s] = etmP[1] + etmP[2]
+  kfitPLIER[s] = nrow(fitPLIER$B)
+  covPLIER = fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z)
+  err_normPLIER[s] = norm(covPLIER - Lambda0_outer, type='F')/
+    norm(Lambda0_outer, type='F')
   
 }
 
-ys = syntheticData(300, 500, 10, 300, 0.5, 0.2,0.8, 434)
+c(median(kfitBASIL), IQR(kfitBASIL))
+c(median(kfitFABLE), IQR(kfitFABLE))
+c(median(err_normBASIL), IQR(err_normBASIL))
+c(median(err_normFABLE), IQR(err_normFABLE))
+c(median(timeBASIL), IQR(timeBASIL))
+c(median(timeFABLE), IQR(timeFABLE))
+
+c(median(kfitPLIER), IQR(kfitPLIER))
+c(median(err_normPLIER), IQR(err_normPLIER))
+c(median(timePLIER), IQR(timePLIER))
+
+
