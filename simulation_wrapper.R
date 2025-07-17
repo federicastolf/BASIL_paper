@@ -28,19 +28,6 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, C_misp
   #C = unname(C)
   q = ncol(C)
   
-  if(C_mispeficied==T){
-    # set to zero the 20% of ones randomly selected
-    i1 = which(C==1)
-    idx0 = sample(x = i1, size = 0.2*length(i1), replace=F)
-    C[idx0] = 0
-    if(sum(colSums(C)==0)>0){
-      C = C[, -which(colSums(C)==0)]
-    }
-    if(sum(rowSums(C)==0)>0){
-      C = C[-which(rowSums(C)==0),]
-    }
-  }
-  
   # compute P_C = C(C'C)^{-1}C' and Q_C = I_p - P_C
   tCCt = crossprod(C)
   s_cross_C = svd(tCCt)
@@ -64,8 +51,20 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, C_misp
   Y = M_0 %*% t(Lambda_0) + sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow=n) 
   colnames(Y) = rownames(C)
   
-  return(list("Y"=Y, "Lambda0_outer" = Lambda0_outer, "C"=C))
-  
+  if(C_mispeficied==T){
+    # set to zero the 20% of ones randomly selected
+    Cmisp = C
+    i1 = which(Cmisp==1)
+    idx0 = sample(x = i1, size = 0.5*length(i1), replace=F)
+    Cmisp[idx0] = 0
+    if(sum(colSums(Cmisp)==0)>0){
+      Cmisp = Cmisp[, -which(colSums(Cmisp)==0)]
+    }
+    return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C, "Cmisp" = Cmisp))
+  }
+  else{
+    return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C))
+  }
 }
 
 
