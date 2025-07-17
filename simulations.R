@@ -1,4 +1,3 @@
-library(FABLE)
 library(PLIER)
 
 rm(list=ls())
@@ -8,10 +7,10 @@ source("simulation_wrapper.R")
 
 # set parameters
 Nsim = 25
-param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
-             sd_gamma = 1, sd_psi = 0.3)
-# param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 0.5, 
+# param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
 #              sd_gamma = 1, sd_psi = 0.3)
+param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 0.5,
+             sd_gamma = 1, sd_psi = 0.3)
   
   
 set.seed(463)
@@ -45,20 +44,20 @@ for(s in 1:Nsim){
 
   # compute FABLE
   ptmF = proc.time()
-  fitFABLE = FABLE::PseudoPosteriorMean(Ys)
+  fitFABLE = PseudoPosteriorMean_2(Ys)
   etmF = proc.time() - ptmF
   timeFABLE[s] = etmF[1] + etmF[2]
   kfitFABLE[s] = fitFABLE$estRank
-  err_normFABLE[s] = norm(fitFABLE$FABLEPostMean - Lambda0_outer, type='F')/
+  err_normFABLE[s] = norm(fitFABLE$Lambda_outer - Lambda0_outer, type='F')/
     norm(Lambda0_outer, type='F')
-  
+
   # compute PLIER
   ptmP = proc.time()
   fitPLIER = PLIER(t(Ys), Cs, scale = F, minGenes = 1, doCrossval = T)
   etmP = proc.time() - ptmP
   timePLIER[s] = etmP[1] + etmP[2]
   kfitPLIER[s] = nrow(fitPLIER$B)
-  covPLIER = fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z)
+  covPLIER = (fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z))/param$n
   err_normPLIER[s] = norm(covPLIER - Lambda0_outer, type='F')/
     norm(Lambda0_outer, type='F')
   
