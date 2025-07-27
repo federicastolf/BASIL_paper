@@ -8,12 +8,15 @@ source("FACTOR_ANALYSIS/FACTOR_CODE_update.R")
 
 # set parameters
 Nsim = 25
-param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
-             sd_gamma = 2, sd_psi = 0.5)
+
+param = list(n = 500, p = 1000, k = 10, q = 500,
+             sigma_sq_0 = 20, sd_gamma = 0.75, 
+             sd_psi = 0.1)
+# old
+#param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
+#             sd_gamma = 2, sd_psi = 0.5)
 # param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 0.5,
 #              sd_gamma = 1, sd_psi = 0.3)
-
-
 set.seed(463)
 seeds_g = sample.int(9000, Nsim)
 
@@ -46,7 +49,8 @@ for(s in 1:Nsim){
 
   # compute rotate
 
-  K = 30
+  #K = 30
+  K = param$k
   startB = matrix(rnorm(param$p*K),param$p,K)
   start = list(B = startB, sigma = rep(1,K), theta = rep(0.5,K))
   ptmR = proc.time()
