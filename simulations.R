@@ -7,7 +7,6 @@ source("simulation_wrapper.R")
 
 # set parameters
 Nsim = 25
-<<<<<<< HEAD
 # high biological signal
 # param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.75,
 #              sd_psi = 0.1)
@@ -17,17 +16,6 @@ param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4
              sd_psi = 0.75)
 
 
-=======
-
-param = list(n = 500, p = 1000, k = 10, q = 500,
-             sigma_sq_0 = 20, sd_gamma = 0.75, 
-             sd_psi = 0.1)
-# old
-#param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 0.5,
-#             sd_gamma = 2, sd_psi = 0.5)
-# param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 0.5,
-#              sd_gamma = 1, sd_psi = 0.3)
->>>>>>> 355e173406deeddb44b2d97b42b188fc301431f0
 set.seed(463)
 seeds_g = sample.int(9000, Nsim)
 
@@ -57,13 +45,7 @@ for(s in 1:Nsim){
     norm(Lambda0_outer, type='F')
   kfitBASIL[s] = est_kBASIL$k_hat
 
-<<<<<<< HEAD
   # compute ROTATE
-=======
-  # compute rotate
-
-  #K = 30
->>>>>>> 355e173406deeddb44b2d97b42b188fc301431f0
   K = param$k
   startB = matrix(rnorm(param$p*K),param$p,K)
   start = list(B = startB, sigma = rep(1,K), theta = rep(0.5,K))
