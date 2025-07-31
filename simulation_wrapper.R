@@ -44,7 +44,7 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
   # loadings
   Gamma_0 = matrix(rnorm(q*k, 0, sd_gamma), ncol=k)
   C_Gamma_0 = C %*% Gamma_0
-  Psi_0 = Q_C %*% matrix(rnorm(p*k, 0, 0.2), ncol=k)
+  Psi_0 = Q_C %*% matrix(rnorm(p*k, 0, sd_psi), ncol=k)
   Lambda_0 = C_Gamma_0 + Psi_0
   Lambda0_outer = tcrossprod(Lambda_0)
   
