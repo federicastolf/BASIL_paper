@@ -8,12 +8,12 @@ source("simulation_wrapper.R")
 # set parameters
 Nsim = 25
 # high biological signal
-# param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.75,
+# param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7,
 #              sd_psi = 0.1)
 
 #low biological signal
 param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4,
-             sd_psi = 0.75)
+             sd_psi = 0.7)
 
 
 set.seed(463)
