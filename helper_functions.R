@@ -82,10 +82,15 @@ compute_point_estimates <- function(
   D_Vt_perp <- D_perp %*% t(V_perp)
   D_Vt_perp_P <-  D_Vt_perp %*% P_C
   
+  
+  sigma_sq_hat <- sum(D_perp^2) / ((n)*p)
+  
   # prior variances hyperparms
-  tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) ) * (n-k) / n
+  #tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) ) * (n-k) / n
+  tau_C <- sum((P_V_D)^2 ) / (k * sigma_sq_hat * q) / n
   print(paste('tau_C  = ', tau_C))
-  tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) ) * (n-k) / n
+  #tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) ) * (n-k) / n
+  tau_N <- sum((Q_V_D)^2 ) / (k * sigma_sq_hat * (p-q))/ n
   print(paste('tau_N  = ', tau_N))
   
   # point estimates
@@ -143,7 +148,8 @@ compute_posterior_samples <- function(
 
 
 
-compute_posterior_samples_cc <- function(
+
+compute_posterior_samples_cc_old <- function(
     Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C,
     v0=1, sigma_sq_0=1, n_MC=100
 ){
@@ -174,6 +180,33 @@ compute_posterior_samples_cc <- function(
               sigma_sq_samples = post_sample$sigma_sq_samples))
 }
 
+
+compute_posterior_samples_cc <- function(
+    Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C,
+    v0=1, sigma_sq_0=1, n_MC=100
+){
+  
+  n <- nrow(Y)
+  p <- ncol(Y)
+  k <- ncol(Lambda_C)
+  
+  Lambda <- Lambda_C + Lambda_N 
+  
+  
+  B <- compute_B(Lambda, sigma_sq)
+  rho <- mean(B[lower.tri(B, diag = T)])
+  print(paste('rho = ', rho))
+  
+  post_sample <- posterior_samples(
+    Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C, v0, sigma_sq_0, n_MC, 
+    rho, rho)
+  
+  
+  
+  return(list(Lambda_samples = post_sample$Lambda_samples, 
+              sigma_sq_samples = post_sample$sigma_sq_samples,
+              rho = rho))
+}
 
 
 

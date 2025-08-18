@@ -4,18 +4,19 @@ source('helper_functions.R')
 source("simulation_wrapper.R")
 
 # set parameters
-Nsim = 10
+Nsim = 20
 # high biological signal
-# param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7,
-#              sd_psi = 0.1)
+param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7,
+              sd_psi = 0.1)
 
 #low biological signal
-param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4,
-             sd_psi = 0.7)
+#param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4,
+#             sd_psi = 0.7)
 
 set.seed(463)
 seeds_g = sample.int(9000, Nsim)
 ccCoverage = rep(0,Nsim)
+
 
 for(s in 1:Nsim){
   #simulate data
@@ -44,6 +45,8 @@ for(s in 1:Nsim){
   cov = mean((Lambda_outer_qs[1,,]<Lambda0_outer[subsample_index, subsample_index]) &
          (Lambda_outer_qs[2,,]>Lambda0_outer[subsample_index, subsample_index]))
   ccCoverage[s] = cov
+  print(ccCoverage[1:s])
+  
 }
 
 summary(ccCoverage)
