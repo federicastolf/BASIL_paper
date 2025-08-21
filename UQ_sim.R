@@ -29,7 +29,7 @@ for(s in 1:Nsim){
   # compute BASIL
   fitBASIL = compute_point_estimates(Ys, Cs, k = param$k)
   subsample_index = 1:200
-  alpha = 0.05
+  alpha = 0.1
   
   ## sample loadings given M = M_hat
   params_posterior_samples = compute_posterior_samples_cc(
