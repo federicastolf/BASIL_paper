@@ -20,7 +20,8 @@ Y = t(dataWholeBlood)
 Y = scale(Y)
 
 #----# fit PLIER #-----#
-PLresult = PLIER(t(Y), allPaths, k = 10, doCrossval = F)
+PLresult = PLIER(t(Y), allPaths, k = 10, doCrossval = F, scale = F)
+#covPLIER = (PLresult$Z %*% (PLresult$B %*% t(PLresult$B)) %*% t(PLresult$Z))/nrow(Y)
 covPLIER = PLresult$Z %*% (cov(t(PLresult$B))) %*% t(PLresult$Z)
 corrPLIER = cov2cor(covPLIER)
 
@@ -50,8 +51,8 @@ EmpPlot = pheatmap(corP, treeheight_row = 0, treeheight_col = 0, cluster_rows = 
                   cluster_cols = T, border_color ="NA", legend=F, show_colnames = F,
                   show_rownames = F, breaks = breaks, color = cols, fontsize = 12,
                   main = "Empirical")
-row_order = EmpPlot1$tree_row$order
-col_order = EmpPlot1$tree_col$order
+row_order = EmpPlot$tree_row$order
+col_order = EmpPlot$tree_col$order
 
 # cor_df = melt(corP)
 # EmpPlot = ggplot(cor_df[row_order, col_order], aes(Var1, Var2, fill = value)) +
