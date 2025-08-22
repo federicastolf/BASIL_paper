@@ -18,12 +18,14 @@ n = nrow(Y)
 
 #----# fit BASIL #-----#
 source('helper_functions.R')
-est_k = estimate_latent_dimension(Y, k_max=30)
-fitBL = compute_point_estimates(Y,  allPaths, k=est_k$k_hat)
-Lambda_hat = fitBL$Lambda_C + fitBL$Lambda_N
-CovBasil = Lambda_hat %*% t(Lambda_hat) + fitBL$sigma_sq*diag(ncol(Y))
-corrBasil = cov2cor(CovBasil)
+est_kWB = estimate_latent_dimension(Y, k_max=30)
+fitWB = compute_point_estimates(Y,  allPaths, k=est_kWB$k_hat)
+fitWB$tau_C/fitWB$tau_N
 
+Lambda_hatWB = fitWB$Lambda_C + fitWB$Lambda_N
+CovBasilWB = Lambda_hatWB %*% t(Lambda_hatWB) + fitWB$sigma_sq*diag(ncol(Y))
+corrBasilWb = cov2cor(CovBasilWB)
+summary(c(corrBasilWb))
 
 #----------# out of sample prediction #---------#
 
@@ -40,7 +42,7 @@ CovBasil = Lambda_hat %*% t(Lambda_hat) + train_fit$sigma_sq*diag(ncol(Y))
 
 #----# fit PLIER 
 library(matrixcalc)
-PLresult = PLIER(t(Y_train), allPaths)
+PLresult = PLIER(t(Y_train), allPaths, scale = F)
 covPLIER = PLresult$Z %*% (cov(t(PLresult$B))) %*% t(PLresult$Z)
 #covPLIER = (PLresult$Z %*% (PLresult$B %*% t(PLresult$B)) %*% t(PLresult$Z))/nrow(Y_train)
 is.positive.definite(covPLIER)
@@ -52,4 +54,4 @@ basil_ll_00s = dmvnorm(Y_test, sigma = CovBasil, log=T)
 plier_ll_00s = dmvnorm(Y_test, sigma = c, log=T)
 #plier_ll_00s = dmvnorm(Y_test, sigma = covPLIER, log=T)
 t.test(basil_ll_00s, plier_ll_00s , alternative='greater', paired=TRUE)
-
+ 
