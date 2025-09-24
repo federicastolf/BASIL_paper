@@ -200,4 +200,84 @@ List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arm
 }
 
 
+// [[Rcpp::export]]
+List compute_covariance_posterior_samples_cc(
+    const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples,
+    bool samples = true) {
+  int p     = Lambda_samples.n_rows;
+  int n_MC  = Lambda_samples.n_slices;
+  
+  arma::mat cov_mean(p, p, fill::zeros);
+  arma::cube cov_samples;                         
+  if (samples) cov_samples.set_size(p, p, n_MC);
+  
+  for (int t = 0; t < n_MC; ++t) {
+    const arma::mat& L_t = Lambda_samples.slice(t);     
+    arma::mat cov_t = L_t * L_t.t();                   
+    cov_t.diag() += sigma_sq_samples[t];               
+    
+    cov_mean += cov_t / static_cast<double>(n_MC);
+    if (samples)  {
+      cov_samples.slice(t) = std::move(cov_t);
+    }
+  }
+  
+  Rcpp::List out = Rcpp::List::create(
+    Rcpp::_["posterior_mean"] = cov_mean
+  );
+  if (samples) {
+    out["posterior_samples"] = cov_samples;             
+  }
+  return out;
+}
+
+
+// [[Rcpp::export]]
+List compute_correlation_posterior_samples_cc(
+    const arma::cube& Lambda_samples,
+    const arma::vec&  sigma_sq_samples,
+    bool samples = true
+) {
+  const int p    = Lambda_samples.n_rows;
+  const int n_MC = Lambda_samples.n_slices;
+  
+  arma::mat  corr_mean(p, p, arma::fill::zeros);
+  arma::cube corr_samples;
+  if (samples) {
+    corr_samples.set_size(p, p, n_MC);
+  }
+  
+  const double eps = 1e-12;
+  
+  auto cov_to_corr = [&](const arma::mat& S) -> arma::mat {
+    arma::vec sd = arma::sqrt(S.diag());
+    sd.transform([&](double v){ return (v > 0.0) ? v : eps; });
+    arma::mat C = S;
+    C.each_col() /= sd;
+    C.each_row() /= sd.t();
+    C.diag().ones();
+    return C;
+  };
+  
+  for (int t = 0; t < n_MC; ++t) {
+    const arma::mat& L_t = Lambda_samples.slice(t);
+    arma::mat cov_t = L_t * L_t.t();
+    cov_t.diag() += sigma_sq_samples[t];
+    arma::mat corr_t = cov_to_corr(cov_t);
+    
+    corr_mean += corr_t / static_cast<double>(n_MC);
+    if (samples) {
+      corr_samples.slice(t) = std::move(corr_t);
+    }
+  }
+  
+  Rcpp::List out = Rcpp::List::create(
+    Rcpp::_["posterior_mean"] = corr_mean
+  );
+  if (samples) out["posterior_samples"] = corr_samples;
+  return out;
+}
+
+
+
 
