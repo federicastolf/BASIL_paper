@@ -48,6 +48,9 @@ corrBasil_mean[((corrBasil_qs[1,,] <0) & (corrBasil_qs[2,,] >0))] = 0
 mean(corrBasil_mean==0)
 
 
+row.names(corrBasil_mean) = colnames(sub_data)
+colnames(corrBasil_mean) = colnames(sub_data)
+
 library(reshape2)
 library(dplyr)
 df_long <- melt(corrBasil_mean[]) %>%
@@ -63,6 +66,7 @@ library(ggraph)
 library(ComplexHeatmap)
 library(circlize)
 library(RColorBrewer)
+
 
 
 rn <- corrBasil_mean[[1]]
@@ -85,23 +89,6 @@ V(g)$cluster <- factor(membership)
 V(g)$strength <- graph.strength(g, weights = E(g)$w_abs)
 V(g)$degree <- degree(g)
 
-clusters_tbl <- tibble(
-  gene = names(membership),
-  cluster = as.integer(membership),
-  degree = V(g)$degree[match(names(membership), V(g)$name)],
-  strength = V(g)$strength[match(names(membership), V(g)$name)]
-) %>% arrange(cluster, desc(strength))
-
-upper_idx <- upper.tri(C, diag = FALSE)
-pairs_tbl <- as_tibble(list(
-  gene1 = rep(genes, each = length(genes))[upper_idx],
-  gene2 = rep(genes, times = length(genes))[upper_idx],
-  r = C[upper_idx]
-)) %>%
-  filter(r != 0) %>%
-  arrange(desc(r))
-top_pos <- pairs_tbl %>% top_n(50, r)
-top_neg <- pairs_tbl %>% arrange(r) %>% head(50)
 
 dist_abs <- as.dist(1 - abs(C))
 hc <- hclust(dist_abs, method = "average")
@@ -109,31 +96,6 @@ order_idx <- hc$order
 C_ord <- C[order_idx, order_idx]
 genes_ord <- rownames(C_ord)
 cluster_vec <- membership[genes_ord]
-ha = HeatmapAnnotation(
-  Cluster = factor(cluster_vec),
-  col = list(Cluster = structure(
-    setNames(brewer.pal(max(3, length(unique(cluster_vec))) %/% 1 + 2, "Set3")[seq_along(unique(cluster_vec))],
-             sort(unique(as.integer(cluster_vec))))
-  )),
-  annotation_name_side = "left",
-  which = "col"
-)
-col_fun <- colorRamp2(c(-1, 0, 1), c("#313695", "white", "#A50026"))
-pdf("correlation_heatmap.pdf", width = 10, height = 10)
-Heatmap(
-  C_ord,
-  name = "r",
-  col = col_fun,
-  show_row_names = FALSE,
-  show_column_names = FALSE,
-  cluster_rows = as.dendrogram(hc),
-  cluster_columns = as.dendrogram(hc),
-  top_annotation = ha,
-  left_annotation = rowAnnotation(Cluster = factor(cluster_vec)),
-  column_title = "Gene-gene correlations (clustered by 1 - |r|)"
-)
-dev.off()
-
 
 E(g)$sign  <- ifelse(E(g)$weight > 0, "positive", "negative")
 E(g)$w_abs <- abs(E(g)$weight)
