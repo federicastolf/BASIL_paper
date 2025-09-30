@@ -203,7 +203,7 @@ List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arm
 // [[Rcpp::export]]
 List compute_covariance_posterior_samples_cc(
     const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples,
-    bool samples = true) {
+    bool samples = true, bool only_low_rank = false) {
   int p     = Lambda_samples.n_rows;
   int n_MC  = Lambda_samples.n_slices;
   
@@ -214,8 +214,9 @@ List compute_covariance_posterior_samples_cc(
   for (int t = 0; t < n_MC; ++t) {
     const arma::mat& L_t = Lambda_samples.slice(t);     
     arma::mat cov_t = L_t * L_t.t();                   
-    cov_t.diag() += sigma_sq_samples[t];               
-    
+    if (!only_low_rank) {
+      cov_t.diag() += sigma_sq_samples[t];
+    }    
     cov_mean += cov_t / static_cast<double>(n_MC);
     if (samples)  {
       cov_samples.slice(t) = std::move(cov_t);
@@ -280,7 +281,8 @@ List compute_correlation_posterior_samples_cc(
 
 // [[Rcpp::export]]
 arma::cube compute_Gamma_samples_cpp(
-    const arma::cube& Lambda_samples, const arma::mat& C, Rcpp::Nullable<arma::mat> R_in = R_NilValue
+    const arma::cube& Lambda_samples, const arma::mat& C,
+    Rcpp::Nullable<arma::mat> R_in = R_NilValue
 ) {
   
   arma::mat U, V;

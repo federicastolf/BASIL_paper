@@ -20,6 +20,7 @@ set.seed(463)
 seeds_g = sample.int(9000, Nsim)
 
 kfitBASIL = err_normBASIL = timeBASIL = rep(0, Nsim)
+err_normBASIL_posterior = timeBASIL_posterior = rep(0, Nsim)
 kfitROTATE = err_normROTATE  = timeROTATE = rep(0, Nsim)
 kfitPLIER = err_normPLIER  = timePLIER = rep(0, Nsim)
 data_all = vector("list", Nsim)
@@ -40,11 +41,18 @@ for(s in 1:Nsim){
   fitBASIL = compute_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
   etmB = proc.time() - ptmB
   timeBASIL[s] = etmB[1] + etmB[2]
+  posterior_mean_BASIL =  compute_covariance_posterior_mean(fitBASIL)$Lambda_outer_mean
+  etmB = proc.time() - ptmB
+  timeBASIL_posterior[s] = etmB[1] + etmB[2]
+  
   Lambda_BASIL = fitBASIL$Lambda_C + fitBASIL$Lambda_N
   err_normBASIL[s] = norm(tcrossprod(Lambda_BASIL) - Lambda0_outer, type='F')/
     norm(Lambda0_outer, type='F')
   kfitBASIL[s] = est_kBASIL$k_hat
-
+  err_normBASIL_posterior[s] = norm(posterior_mean_BASIL - Lambda0_outer, type='F')/
+    norm(Lambda0_outer, type='F')
+  
+  
   # compute ROTATE
   K = param$k
   startB = matrix(rnorm(param$p*K),param$p,K)
@@ -73,6 +81,7 @@ for(s in 1:Nsim){
 
 summary(err_normROTATE)
 summary(err_normBASIL)
+summary(err_normBASIL_posterior)
 summary(err_normPLIER)
 
 

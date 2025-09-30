@@ -177,34 +177,7 @@ compute_posterior_samples_cc <- function(
 }
 
 
-compute_covariance_posterior_samples_cc_old <- function(
-    Lambda_samples, sigma_sq_samples, samples = T
-){
-  
-  n_MC <- dim(Lambda_samples)[3]
-  k <- dim(Lambda_samples)[2]
-  p <- dim(Lambda_samples)[1]
-  
-  cov_mean <- matrix(0, p, p)
-  if(samples){
-    cov_samples <- array(NA, dim = c(p, p, n_MC))
-  }
-  
-   for(t in 1:n_MC){
-     cov_sample_t <- tcrossprod(Lambda_samples[,,t]) + sigma_sq_samples[t] * diag(p)
-     cov_mean <-cov_mean + cov_sample_t/n_MC
-     if(samples){
-       cov_samples[,,t] <- cov_sample_t
-     }
-   }
-  out <- list(posterior_mean = cov_mean)
-  if(samples){
-    out$posterior_samples = cov_samples
-  }
-  return(out)
-}
-  
-  
+
 
 
 
@@ -234,6 +207,17 @@ predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
 } 
 
 
+compute_covariance_posterior_mean <- function(Y, fit){
+  Lambda = fit$Lambda_C + fit$Lambda_N
+  B <- compute_B(Lambda, fit$sigma_sq)
+  rho <- mean(B[lower.tri(B, diag = T)])
+  Lambda_outer_mean <- tcrossprod(Lambda) + fit$sigma_sq * rho *
+    (1 / (n + 1/fit$tau_C) +1 / (n + 1/fit$tau_N)) * diag(nrow(Lambda))
+  cov_mean <- Lambda_outer_mean + fit$sigma_sq * diag(nrow(Lambda))
+  return(list(
+    Lambda_outer_mean = Lambda_outer_mean, cov_mean = cov_mean
+  ))
+}
 
 
 
