@@ -83,7 +83,7 @@ compute_point_estimates <- function(
   D_Vt_perp_P <-  D_Vt_perp %*% P_C
   
   
-  sigma_sq_hat <- sum(D_perp^2) / ((n)*p)
+  sigma_sq_hat <- sum(D_perp^2) / ((n - k)*p)
   
   # prior variances hyperparms
   #tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) ) * (n-k) / n
@@ -149,38 +149,6 @@ compute_posterior_samples <- function(
 
 
 
-compute_posterior_samples_cc_old <- function(
-    Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C,
-    v0=1, sigma_sq_0=1, n_MC=100
-){
-  
-  n <- nrow(Y)
-  p <- ncol(Y)
-  k <- ncol(Lambda_C)
-  
-  Q_C <- diag(1, p, p) - P_C
-  
-  B_C <- compute_B(Lambda_C, sigma_sq)
-  rho_C <- mean(B_C[lower.tri(B_C, diag = T)])
-  print(paste('rho_C = ', rho_C))
-  
-  
-  B_N <- compute_B(Lambda_N, sigma_sq)
-  rho_N <- mean(B_N[lower.tri(B_N, diag = T)])
-  print(paste('rho_N = ', rho_N))
-  
-  
-  post_sample <- posterior_samples(
-    Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C, v0, sigma_sq_0, n_MC, 
-    rho_C, rho_N)
-  
-  
-  
-  return(list(Lambda_samples = post_sample$Lambda_samples, 
-              sigma_sq_samples = post_sample$sigma_sq_samples))
-}
-
-
 compute_posterior_samples_cc <- function(
     Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, P_C,
     v0=1, sigma_sq_0=1, n_MC=100
@@ -209,6 +177,37 @@ compute_posterior_samples_cc <- function(
 }
 
 
+compute_covariance_posterior_samples_cc_old <- function(
+    Lambda_samples, sigma_sq_samples, samples = T
+){
+  
+  n_MC <- dim(Lambda_samples)[3]
+  k <- dim(Lambda_samples)[2]
+  p <- dim(Lambda_samples)[1]
+  
+  cov_mean <- matrix(0, p, p)
+  if(samples){
+    cov_samples <- array(NA, dim = c(p, p, n_MC))
+  }
+  
+   for(t in 1:n_MC){
+     cov_sample_t <- tcrossprod(Lambda_samples[,,t]) + sigma_sq_samples[t] * diag(p)
+     cov_mean <-cov_mean + cov_sample_t/n_MC
+     if(samples){
+       cov_samples[,,t] <- cov_sample_t
+     }
+   }
+  out <- list(posterior_mean = cov_mean)
+  if(samples){
+    out$posterior_samples = cov_samples
+  }
+  return(out)
+}
+  
+  
+
+
+
 
 predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
   
@@ -235,83 +234,8 @@ predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
 } 
 
 
-compute_point_estimates_2 <- function(
-    Y, C, k = NA, k_max = 50, v0 = 1, sigma_sq0 = 1,
-    tol = 0.0001, iter_max = 100){
-  
-  # estimate latent dimension if unknown
-  if(is.na(k)){
-    k_hat <-  estimate_latent_dimension(Y, k_max)
-    k <- k_hat$k_hat
-    svd_Y <- k_hat$svd_Y
-  }
-  else{
-    svd_Y <- svd(Y)
-  }
-  
-  # extract components of svd of Y
-  U <- svd_Y$u[,1:k]
-  D <- diag(as.vector(svd_Y$d[1:k]))
-  V <- svd_Y$v[,1:k]
-  U_perp <- svd_Y$u[,-c(1:k)]
-  D_perp <- diag(as.vector(svd_Y$d[-c(1:k)]))
-  V_perp <- svd_Y$v[,-c(1:k)]
-  
-  
-  P_C <- C %*% solve(crossprod(C)) %*% t(C)
-  Q_C <- diag(1, p, p) - P_C
-  
-  Y_P <- Y %*% P_C
-  Y_Q <- Y - Y_P
-  
-  V_D <- V %*% D
-  P_V_D <- P_C %*% V_D
-  Q_V_D <- V_D - P_V_D 
-  D_Vt_perp <- D_perp %*% t(V_perp)
-  D_Vt_perp_P <-  D_Vt_perp %*% P_C
-  tau_C <- sum((P_V_D)^2 ) / (k * sum((D_Vt_perp_P )^2) )
-  print(paste('tau_C = ', tau_C))
-  tau_N <- sum((Q_V_D)^2 ) / (k * sum((D_Vt_perp - D_Vt_perp_P)^2) )
-  print(paste('tau_N = ', tau_N))
-  
-  # initial values 
-  M<- sqrt(n) * U
-  Lambda_C <- (P_V_D) * sqrt(n) / (n + 1/tau_C)
-  Lambda_N <- (Q_V_D) * sqrt(n) / (n + 1/tau_N)
-  sigma_sq_new <- (v0 * sigma_sq0 + sum((Y-tcrossprod(M, Lambda_C + Lambda_N) )^2) ) /
-    (v0 + n*p -2)
-  
-  it <- 1
-  while(it < N_iter_max){
-    print(paste0('iter : ', it))
-    Lambda_C_new <- t(Y_P) %*% M %*% solve(crossprod(M) + 1/tau_C * diag(1, k, k)) 
-    Lambda_N_new <- t(Y_Q) %*% M %*% solve(crossprod(M) + 1/tau_N * diag(1, k, k)) 
-    var_mat <- solve(sigma_sq * diag(1, k, k) + crossprod(Lambda_C_new) + crossprod(Lambda_N_new))
-    M_new <- (Y %*% (Lambda_C_new + Lambda_N_new)) %*% var_mat
-    sigma_sq_new <- (
-      v0 * sigma_sq0 + sum((Y-tcrossprod(M_new, Lambda_C_new + Lambda_N_new) )^2) ) /  (v0 + n*p -2)
-    err <- sum((Lambda_C_new - Lambda_C)^2) + sum((Lambda_N_new - Lambda_N)^2) + sum((M_new - M)^2)
-    par_old <- sum(Lambda_C^2) + sum(Lambda_N^2) + sum(M^2)
-    
-    print(err/par_old)
-    if(err/par_old < tol){
-      Lambda_C <- Lambda_C_new
-      Lambda_N <- Lambda_N_new
-      M <- M_new
-      sigma_sq <- sigma_sq_new
-      it <- N_iter_max + 1
-    }
-    Lambda_C <- Lambda_C_new
-    Lambda_N <- Lambda_N_new
-    M <- M_new
-    sigma_sq <- sigma_sq_new
-    it <- it + 1
-  }
-  
-  return(list(M=M, Lambda_C=Lambda_C, Lambda_N=Lambda_N, sigma_sq=sigma_sq,
-              tau_C=tau_C, tau_N=tau_N, k=k))
-  
-}
+
+
 
 
 

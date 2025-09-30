@@ -278,6 +278,52 @@ List compute_correlation_posterior_samples_cc(
   return out;
 }
 
+// [[Rcpp::export]]
+arma::cube compute_Gamma_samples_cpp(
+    const arma::cube& Lambda_samples, const arma::mat& C, Rcpp::Nullable<arma::mat> R_in = R_NilValue
+) {
+  
+  arma::mat U, V;
+  arma::vec s;
+  if (!arma::svd(U, s, V, C)) {
+    stop("SVD failed on C.");
+  }
+  
+  const double tol = 1e-5;
+  arma::uword d = arma::sum(s > tol);
+
+  arma::mat Usub = U.cols(0, d - 1);
+  arma::mat Vsub = V.cols(0, d - 1);
+  arma::vec sinv = 1.0 / s.head(d);
+  arma::mat Dinv = arma::diagmat(sinv);
+  arma::mat ols = Vsub * Dinv * Usub.t();
+  
+  const arma::uword p    = Lambda_samples.n_rows;
+  const arma::uword k    = Lambda_samples.n_cols;
+  const arma::uword n_MC = Lambda_samples.n_slices;
+  const arma::uword q    = C.n_cols;
+  
+  if (C.n_rows != p) stop("nrow(C) must equal nrow(Lambda_samples).");
+  
+  arma::mat Rmat;
+  bool use_R = false;
+  if (R_in.isNotNull()) {
+    Rmat = as<arma::mat>(R_in);
+    if (Rmat.n_rows != k) stop("nrow(R) must equal ncol(Lambda_samples).");
+    if (Rmat.n_cols != k) stop("ncol(R) must equal ncol(Lambda_samples).");
+    use_R = true;
+  }
+  
+  arma::cube Gamma_samples(q, k, n_MC, arma::fill::none);
+  
+  for (arma::uword t = 0; t < n_MC; ++t) {
+    arma::mat L = Lambda_samples.slice(t);
+    if (use_R) L = L * Rmat;
+    Gamma_samples.slice(t) = ols * L;
+  }
+  
+  return Gamma_samples;
+}
 
 
 
