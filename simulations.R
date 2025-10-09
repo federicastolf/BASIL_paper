@@ -3,7 +3,7 @@ library(PLIER)
 rm(list=ls())
 
 source('helper_functions.R')
-source("simulation_wrapper.R")
+source("simulation_helper.R")
 
 
 #------------------------------------------------------------------------------#
