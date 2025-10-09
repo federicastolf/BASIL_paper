@@ -5,101 +5,214 @@ rm(list=ls())
 source('helper_functions.R')
 source("simulation_wrapper.R")
 
-# set parameters
+
+#------------------------------------------------------------------------------#
+#------------# accuracy covariance and k simulations (Fig 2a, 2c) #------------#
+
 Nsim = 25
-# high biological signal
-# param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7,
-#              sd_psi = 0.1)
 
-#low biological signal
-param = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4,
-             sd_psi = 0.7)
+# Setting 1: High biological signal, p=3000
+param1 = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
+              sd_psi = 0.1)
+df_high_p3000 = run_simulation_study(param1, scenario_name = "high", Nsim = Nsim,
+                                     seed = 463)
 
+# Setting 2: Low biological signal, p=3000
+param2 = list(n = 500, p = 3000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4, 
+              sd_psi = 0.7)
+df_low_p3000 = run_simulation_study(param2, scenario_name = "low", Nsim = Nsim, 
+                                     seed = 463)
+
+# Setting 3: High biological signal, p=1000
+param3 = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
+              sd_psi = 0.1)
+df_high_p1000 = run_simulation_study(param3, scenario_name = "high", Nsim = Nsim,
+                                      seed = 463)
+
+# Setting 4: Low biological signal, p=1000
+param4 = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.4, 
+              sd_psi = 0.7)
+df_low_p1000 = run_simulation_study(param4,scenario_name = "low", Nsim = Nsim, 
+                                     seed = 463)
+
+# all results
+Simboxplot_df = rbind(df_high_p3000, df_low_p3000, df_high_p1000, df_low_p1000)
+
+#------# MSE boxplot #-------#
+
+nl = c("1000"="1000 genes", "3000"="3000 genes")
+
+Fnplot = ggplot(Simboxplot_df, aes(x = scenario, y = err_norm, fill = model))+
+  geom_boxplot(alpha=0.7) +
+  # scale_fill_manual(values = c("green3","red", "steelblue")) +
+  scale_fill_manual(values =c("#009E73", "#c85200","#1170aa")) +
+  facet_wrap(~ p, scales = "fixed", labeller = as_labeller(nl)) +
+  xlab("Biological signal") + ylab("Error") +
+  theme_light() +
+  theme(legend.position = "top", legend.title = element_blank(),
+        legend.text = element_text(size=15),legend.key.size = unit(1,"line"),
+        legend.box.spacing = unit(0.1,"line"),
+        strip.text = element_text(size = 16, colour = "black"),
+        strip.background = element_rect(fill = "gray82"),
+        panel.grid.major = element_line(size = 0.3, colour = "gray93"),
+        panel.grid.minor = element_line(size = 0.15, colour = "gray93"),
+        axis.text.x=element_text(size=15),
+        axis.title.y=element_text(size=14),
+        axis.title.x=element_text(size=15),)
+Fnplot
+
+# ggsave(filename = "results_sim/Errplot.png", plot=Fnplot,  width = 9, height = 5)
+
+
+#------------------------------------------------------------------------------#
+#------------------------# computation time (Fig 2b) #-------------------------#
+
+param5 = list(n = 500, p = 4000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
+              sd_psi = 0.1)
+df_high_p4000 = run_simulation_study(param5,scenario_name = "high", Nsim = Nsim, 
+                                     seed = 463)
+param6 = list(n = 500, p = 2000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
+              sd_psi = 0.1)
+df_high_p2000 = run_simulation_study(param6,scenario_name = "high", Nsim = Nsim, 
+                                     seed = 463)
+param7 = list(n = 500, p = 5000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
+              sd_psi = 0.1)
+df_high_p5000 = run_simulation_study(param7,scenario_name = "high", Nsim = Nsim, 
+                                     seed = 463)
+
+Time_temp = Simboxplot_df %>% filter(scenario=="high")
+TimeSim = rbind(Time_temp, df_high_p4000, df_high_p2000, df_high_p5000)
+TimeSim = TimeSim %>% dplyr::select(time, model, p)
+
+#--# plot
+Timeavg = TimeSim %>% group_by(model,p) %>% summarise(mean = mean(time))
+Timeavg$p = as.numeric(Timeavg$p)
+Timeplot = ggplot(Timeavg, aes(x = p, y = log(mean), color = model, group = model)) + 
+  geom_point() + geom_line() +
+  # scale_color_manual(values = c("green3","red", "steelblue")) +
+  scale_color_manual(values = c("#009E73", "#c85200","#1170aa")) +
+  xlab("Number of genes") + ylab("runtime (log scale)") +
+  theme_light() +
+  theme(legend.position = "top", legend.title = element_blank(),
+        legend.text = element_text(size=15),legend.key.size = unit(1,"line"),
+        legend.box.spacing = unit(0.1,"line"),
+        strip.text = element_text(size = 16, colour = "black"),
+        strip.background = element_rect(fill = "gray82"),
+        panel.grid.major = element_line(size = 0.3, colour = "gray93"),
+        panel.grid.minor = element_line(size = 0.15, colour = "gray93"),
+        axis.text.x=element_text(size=15),
+        axis.title.y=element_text(size=14),
+        axis.title.x=element_text(size=15),)
+
+Timeplot
+
+# ggsave(filename = "results_sim/Timeplot.png", plot=Timeplot,  width = 7.5, height = 5)
+
+
+#------------------------------------------------------------------------------#
+#-------------# Ratio variances and biological signal (Fig 2e) #---------------#
+
+sd_gammaL = c(0.001, 0.09, 0.14, 0.2, 0.25 , 0.28, 0.31, 0.34, 0.37)
 
 set.seed(463)
 seeds_g = sample.int(9000, Nsim)
+tauC = tauN = ratio = matrix(0, length(sd_gammaL), Nsim)
 
-kfitBASIL = err_normBASIL = timeBASIL = rep(0, Nsim)
-err_normBASIL_posterior = timeBASIL_posterior = rep(0, Nsim)
-kfitROTATE = err_normROTATE  = timeROTATE = rep(0, Nsim)
-kfitPLIER = err_normPLIER  = timePLIER = rep(0, Nsim)
-data_all = vector("list", Nsim)
-
-for(s in 1:Nsim){
-  #simulate data
-  datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q, 
-                        sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
-                        sd_psi = param$sd_psi, mseed = seeds_g[s])
-  data_all[[s]] = datas
-  Ys = datas$Y
-  Cs = datas$C
-  Lambda0_outer = datas$Lambda0_outer
+for(g in 1:length(sd_gammaL)){
+  param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 2, sd_gamma = sd_gammaL[g],
+               sd_psi = 1)
   
-  # compute BASIL
-  ptmB = proc.time()
-  est_kBASIL = estimate_latent_dimension(Ys, k_max = 50)
-  fitBASIL = compute_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
-  etmB = proc.time() - ptmB
-  timeBASIL[s] = etmB[1] + etmB[2]
-  posterior_mean_BASIL =  compute_covariance_posterior_mean(fitBASIL)$Lambda_outer_mean
-  etmB = proc.time() - ptmB
-  timeBASIL_posterior[s] = etmB[1] + etmB[2]
-  
-  Lambda_BASIL = fitBASIL$Lambda_C + fitBASIL$Lambda_N
-  err_normBASIL[s] = norm(tcrossprod(Lambda_BASIL) - Lambda0_outer, type='F')/
-    norm(Lambda0_outer, type='F')
-  kfitBASIL[s] = est_kBASIL$k_hat
-  err_normBASIL_posterior[s] = norm(posterior_mean_BASIL - Lambda0_outer, type='F')/
-    norm(Lambda0_outer, type='F')
-  
-  
-  # compute ROTATE
-  K = param$k
-  startB = matrix(rnorm(param$p*K),param$p,K)
-  start = list(B = startB, sigma = rep(1,K), theta = rep(0.5,K))
-  ptmR = proc.time()
-  fitROTATE = FACTOR_ROTATE(Y = Ys, lambda0 = 5, lambda1= 0.001, start = start, 
-                            K = K, epsilon = 0.05, alpha = 1/param$p, PX = TRUE,
-                            approximate = TRUE, stop = 100, varimax = TRUE, plot = FALSE)
-  etmR = proc.time() - ptmR
-  timeROTATE[s] = etmR[1] + etmR[2]
-  Lambda_ROTATE = fitROTATE$B
-  err_normROTATE[s] = norm(tcrossprod(Lambda_ROTATE) - Lambda0_outer, type='F')/
-    norm(Lambda0_outer, type='F')
-  
-  # compute PLIER
-  ptmP = proc.time()
-  fitPLIER = PLIER(t(Ys), Cs, scale = F, minGenes = 1, doCrossval = T)
-  etmP = proc.time() - ptmP
-  timePLIER[s] = etmP[1] + etmP[2]
-  kfitPLIER[s] = nrow(fitPLIER$B)
-  covPLIER = (fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z))/param$n
-  err_normPLIER[s] = norm(covPLIER - Lambda0_outer, type='F')/
-    norm(Lambda0_outer, type='F')
-
+  for(s in 1:Nsim){
+    #simulate data
+    datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q, 
+                          sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
+                          sd_psi = param$sd_psi, mseed = seeds_g[s])
+    Ys = datas$Y
+    Cs = datas$C
+    
+    # compute BASIL
+    fitBASIL = compute_point_estimates(Ys, Cs, k = param$k)
+    tauN[g,s] = fitBASIL$tau_N 
+    tauC[g,s] = fitBASIL$tau_C
+    ratio[g,s] = tauC[g,s]/tauN[g,s]
+  }
 }
 
-summary(err_normROTATE)
-summary(err_normBASIL)
-summary(err_normBASIL_posterior)
-summary(err_normPLIER)
+## plot
+vR = c(t(ratio))
+sig = rep(1:9, each = 25)
+dataPlot_bs = cbind.data.frame(vR,sig)
+
+p_bs = ggplot(dataPlot:bs, aes(y = vR, group = sig))+
+  geom_boxplot(alpha=0.7, fill="lightblue1") +
+  xlab("Biological signal") +
+  ylab(TeX("variance $\\Gamma$ / variance $\\Psi$")) +
+  geom_hline(yintercept=1, linetype="dashed") +
+  theme_light() +
+  theme(legend.position = "top", legend.title = element_blank(),
+        legend.text = element_text(size=15),legend.key.size = unit(1,"line"),
+        legend.box.spacing = unit(0.1,"line"),
+        strip.text = element_text(size = 16, colour = "black"),
+        strip.background = element_rect(fill = "gray82"),
+        panel.grid.major = element_line(size = 0.3, colour = "gray93"),
+        panel.grid.minor = element_line(size = 0.15, colour = "gray93"),
+        axis.text.x=element_blank(),
+        axis.text.y=element_text(size=13),
+        axis.title.y=element_text(size=15),
+        axis.title.x=element_text(size=16),)
+p_bs
+
+# ggsave(filename = "results_sim/LowHigh.png", plot=p_bs,  width = 8.5, height = 5)
 
 
-# SimResLow1 = cbind.data.frame(c(err_normBASIL, err_normROTATE, err_normPLIER),
-#                           c(timeBASIL, timeROTATE, timePLIER),
-#                           c(kfitBASIL, kfitROTATE, kfitPLIER),
-#                           c(rep("BASIL",Nsim), rep("ROTATE",Nsim),  rep("PLIER",Nsim)),
-#                           rep("3000", Nsim*3))
-# colnames(SimResLow1) = c("err_norm", "time", "k_est", "model", "p")
-# # 
-# 
-# load("simResultsLow.Rdata")
-# SimResLow = rbind.data.frame(SimResLow, SimResLow1)
-# save(SimResLow, file="simResultsLow.Rdata")
-# 
+#------------------------------------------------------------------------------#
+#-----------------# Uncertainty quantification (Fig 2d) #----------------------#
 
-# B1 = SimResLow %>% filter(p=="3000") %>% filter(model=="PLIER") 
-# c(median(B1$err_norm), IQR(B1$err_norm))
-# c(median(B1$k_est), IQR(B1$k_est))
-# c(median(B1$time), IQR(B1$time))
+subsample_index = 1:subsample_size
+
+# Setting 1: High biological signal, p=3000
+coverage_high_p3000 <- run_coverage_simulation(
+  param1, subsample_index, scenario_name = "high", subsample_size = 200, alpha = 0.05, 
+  Nsim = Nsim, seed = 463)
+
+# Setting 2: Low biological signal, p=3000
+coverage_low_p3000 <- run_coverage_simulation(
+  param2, subsample_index, scenario_name = "low", subsample_size = 200, alpha = 0.05, 
+  Nsim = Nsim, seed = 463)
+
+# Setting 3: High biological signal, p=1000
+coverage_high_p1000 <- run_coverage_simulation(
+  param3, subsample_index, scenario_name = "high", subsample_size = 200, alpha = 0.05, 
+  Nsim = Nsim, seed = 463)
+
+# Setting 4: Low biological signal, p=1000
+coverage_low_p1000 <- run_coverage_simulation(
+  param4, subsample_index, scenario_name = "low", subsample_size = 200, alpha = 0.05, 
+  Nsim = Nsim, seed = 463)
+
+SimUQ = rbind(coverage_high_p3000$data, coverage_low_p3000$data, coverage_high_p5000$data,
+  coverage_low_p5000$data)
+
+UQplot = ggplot(SimUQ, aes(x = scenario, y = coverage))+
+  geom_boxplot(alpha=0.7, fill="lightblue") +
+  facet_wrap(~ p, scales = "fixed", labeller = as_labeller(nl)) +
+  geom_hline(aes(yintercept=0.95), linetype = "dashed") +
+  xlab("Biological signal") +
+  ylab("Coverage") +
+  theme_light() +
+  ylim(c(0.6,1)) +
+  theme(legend.position = "top", legend.title = element_blank(),
+        legend.text = element_text(size=15),legend.key.size = unit(1,"line"),
+        legend.box.spacing = unit(0.1,"line"),
+        strip.text = element_text(size = 16, colour = "black"),
+        strip.background = element_rect(fill = "gray82"),
+        panel.grid.major = element_line(size = 0.3, colour = "gray93"),
+        panel.grid.minor = element_line(size = 0.15, colour = "gray93"),
+        axis.text.x=element_text(size=15),
+        axis.text.y=element_text(size=15),
+        axis.title.y=element_text(size=14),
+        axis.title.x=element_text(size=15),)
+UQplot
+
+# ggsave(filename = "results_sim/Coverageplot.png", plot=UQplot,  width = 5, height = 5)
 

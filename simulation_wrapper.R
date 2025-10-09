@@ -3,6 +3,7 @@ library(tidyverse)
 
 source("FACTOR_CODE_update.R")
 
+
 get_geneSetMatrix = function(p, q){
   # msig_data = msigdbr(species = "Homo sapiens", category = "H")
   msig_data = msigdbr(species = 'Homo sapiens', category = 'C5', subcategory = 'GO:MF')
@@ -55,4 +56,138 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
   return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C))
 }
 
+run_simulation_study = function(param, Nsim, seed) {
+  
+  set.seed(seed)
+  seeds_g = sample.int(9000, Nsim)
+  
+  # Initialize result storage
+  results = list(kfitBASIL = numeric(Nsim), err_normBASIL = numeric(Nsim),
+    err_normBASIL_posterior = numeric(Nsim), timeBASIL = numeric(Nsim),
+    timeBASIL_posterior = numeric(Nsim), kfitROTATE = numeric(Nsim), 
+    err_normROTATE = numeric(Nsim), timeROTATE = numeric(Nsim),
+    kfitPLIER = numeric(Nsim), err_normPLIER = numeric(Nsim), 
+    timePLIER = numeric(Nsim), parameters = param)
+  
+  for (s in 1:Nsim) {
+    # Simulate data
+    datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q,
+      sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
+      sd_psi = param$sd_psi, mseed = seeds_g[s])
+    Ys = datas$Y
+    Cs = datas$C
+    Lambda0_outer = datas$Lambda0_outer
+    
+    ## BASIL 
+    ptmB <- proc.time()
+    est_kBASIL <- estimate_latent_dimension(Ys, k_max = 50)
+    fitBASIL <- compute_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
+    etmB <- proc.time() - ptmB
+    results$timeBASIL[s] <- etmB[1] + etmB[2]
+    posterior_mean_BASIL <- compute_covariance_posterior_mean(Ys, fitBASIL)$Lambda_outer_mean
+    etmB <- proc.time() - ptmB
+    results$timeBASIL_posterior[s] <- etmB[1] + etmB[2]
+    Lambda_BASIL <- fitBASIL$Lambda_C + fitBASIL$Lambda_N
+    results$err_normBASIL[s] <- norm(tcrossprod(Lambda_BASIL) - Lambda0_outer, 
+                                     type = 'F')/norm(Lambda0_outer, type = 'F')
+    results$kfitBASIL[s] <- est_kBASIL$k_hat
+    results$err_normBASIL_posterior[s] <- norm(posterior_mean_BASIL - Lambda0_outer, 
+                                               type = 'F')/norm(Lambda0_outer, type = 'F')
+    
+    ## ROTATE 
+    K <- param$k
+    startB <- matrix(rnorm(param$p * K), param$p, K)
+    start <- list(B = startB, sigma = rep(1, K), theta = rep(0.5, K))
+    ptmR <- proc.time()
+    fitROTATE <- FACTOR_ROTATE(Y = Ys, lambda0 = 5, lambda1 = 0.001, start = start,
+      K = K, epsilon = 0.05, alpha = 1 / param$p, PX = TRUE, approximate = TRUE, 
+      stop = 100, varimax = TRUE, plot = FALSE)
+    etmR <- proc.time() - ptmR
+    results$timeROTATE[s] <- etmR[1] + etmR[2]
+    Lambda_ROTATE <- fitROTATE$B
+    results$err_normROTATE[s] <- norm(tcrossprod(Lambda_ROTATE) - Lambda0_outer,
+                                      type = 'F')/norm(Lambda0_outer, type = 'F')
+    
+    ## PLIER 
+    ptmP <- proc.time()
+    fitPLIER <- PLIER(t(Ys), Cs, scale = FALSE, minGenes = 1, doCrossval = TRUE)
+    etmP <- proc.time() - ptmP
+    results$timePLIER[s] <- etmP[1] + etmP[2]
+    results$kfitPLIER[s] <- nrow(fitPLIER$B)
+    covPLIER <- (fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z))/param$n
+    results$err_normPLIER[s] <- norm(covPLIER - Lambda0_outer, type = 'F')/norm(Lambda0_outer, type = 'F')
+    
+    if (s %% 5 == 0) {
+      cat(sprintf("Completed simulation %d/%d\n", s, Nsim))
+    }
+  }
+  
+  #Convert to tidy data frame
+  df_basil <- data.frame(err_norm = results$err_normBASIL, time = results$timeBASIL,
+    k_est = results$kfitBASIL, model = "BASIL", p = p, scenario = scenario_name,
+    stringsAsFactors = FALSE)
+  
+  df_basil_post <- data.frame(err_norm = results$err_normBASIL_posterior,
+    time = results$timeBASIL_posterior, k_est = results$kfitBASIL, model = "BASIL_posterior",
+    p = p,scenario = scenario_name, stringsAsFactors = FALSE)
+  
+  df_rotate <- data.frame(err_norm = results$err_normROTATE, time = results$timeROTATE,
+    k_est = results$kfitROTATE, model = "ROTATE", p = p, scenario = scenario_name, 
+    stringsAsFactors = FALSE)
+  
+  df_plier <- data.frame(err_norm = results$err_normPLIER, time = results$timePLIER,
+    k_est = results$kfitPLIER, model = "PLIER", p = p, scenario = scenario_name,
+    stringsAsFactors = FALSE)
+  
+  # Combine all methods
+  df_combined <- rbind(df_basil, df_basil_post, df_rotate, df_plier)
+  
+  return(df_combined)
+}
 
+# Function to run coverage simulation
+run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha, 
+                                    Nsim, seed){
+  
+  set.seed(seed)
+  seeds_g <- sample.int(9000, Nsim)
+  ccCoverage <- numeric(Nsim)
+  
+  # Run simulations
+  for (s in 1:Nsim) {
+    # Simulate data
+    datas <- syntheticData(n = param$n, p = param$p, k = param$k, q = param$q,
+                           sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
+                           sd_psi = param$sd_psi, mseed = seeds_g[s])
+    Ys <- datas$Y
+    Cs <- datas$C
+    Lambda0_outer <- datas$Lambda0_outer
+    
+    # Compute BASIL
+    fitBASIL <- compute_point_estimates(Ys, Cs, k = param$k)
+    # Sample loadings given M = M_hat
+    params_posterior_samples <- compute_posterior_samples_cc(
+      Ys, fitBASIL$Lambda_C, fitBASIL$Lambda_N, fitBASIL$tau_C, 
+      fitBASIL$tau_N, fitBASIL$sigma_sq, fitBASIL$P_C)
+    Lambda_outer_posterior_samples <- sample_Lambda_outer(
+      params_posterior_samples$Lambda_samples[subsample_index, , ])
+    Lambda_outer_qs <- apply(Lambda_outer_posterior_samples, c(1, 2),
+                             function(x) quantile(x, probs = c(alpha / 2, 1 - alpha / 2)))
+    
+    # Calculate coverage
+    cov <- mean((Lambda_outer_qs[1, , ] < Lambda0_outer[subsample_index, subsample_index]) &
+                  (Lambda_outer_qs[2, , ] > Lambda0_outer[subsample_index, subsample_index]))
+    ccCoverage[s] <- cov
+    
+    if (s %% 5 == 0) {
+      cat(sprintf("Completed simulation %d/%d, current mean coverage: %.4f\n", 
+                  s, Nsim, mean(ccCoverage[1:s])))
+    }
+  }
+  # Create data frame
+  coverage_df = data.frame(coverage = ccCoverage, scenario = scenario_name, 
+                           p = as.character(p), stringsAsFactors = FALSE)
+  
+  # return(list(data = coverage_df,coverage_vector = ccCoverage))
+  return(coverage_df)
+}

@@ -206,8 +206,8 @@ predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
               Y_pred_samples = predictions$Y_samples))
 } 
 
-
 compute_covariance_posterior_mean <- function(Y, fit){
+  n = dim(Y)[1]
   Lambda = fit$Lambda_C + fit$Lambda_N
   B <- compute_B(Lambda, fit$sigma_sq)
   rho <- mean(B[lower.tri(B, diag = T)])
