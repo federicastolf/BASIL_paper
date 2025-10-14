@@ -90,6 +90,49 @@ plot_gene_network <- function(cor_mat, n = 50){
 }
 
 
+get_topPathways = function(gamma_mean, pathway_names, top_n, clean_names){
+  k <- ncol(gamma_mean)
+  plot_data <- data.frame()
+  
+  for (j in 1:k) {
+    loadings <- gamma_mean[, j]
+    final_idx <- order(abs(loadings), decreasing = TRUE)[1:top_n]
+    pathways_display <- pathway_names[final_idx]
+    # Clean names if requested
+    if (clean_names) {
+      pathways_display <- gsub("^REACTOME_|^GOMF_|^MIPS_|^IRIS_|^DMAP_", "", 
+                               pathways_display)
+      pathways_display <- gsub("_", " ", pathways_display)
+    }
+    df_temp <- data.frame(Factor_num = j, Pathway = pathways_display, 
+                          Loading = gamma_mean[final_idx, j],
+                          AbsLoading = abs(gamma_mean[final_idx, j]))
+    plot_data <- rbind(plot_data, df_temp)
+  }
+  return(plot_data)
+}
+
+
+dotplot_top_pathways <- function(plot_data){
+  ggplot(plot_data, aes(x = Loading, y = reorder(Pathway, AbsLoading), 
+                        color = Loading>0)) +
+    geom_point(size=3) +
+    geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+    facet_wrap(~ Factor_num, scales = "free_y", ncol = 2,
+               labeller = labeller(Factor_num = function(x) paste0("Factor ", x))) +
+    scale_color_manual(values = c("TRUE" = "brown1", "FALSE" = "royalblue3"),
+                       labels = c("TRUE" = "Positive", "FALSE" = "Negative"),
+                       name = "Loading") +
+    #scale_size_continuous(range = c(2, 6)) +
+    theme_minimal() +
+    labs(x = "", y = "", size = "Absolute\nLoading", color = "Loading") +
+    theme(axis.text.y = element_text(size = 7),
+          strip.text = element_text(size = 11, face = "bold"),
+          legend.position = "none",
+          plot.margin = margin(10, 10, 10, 10))  # Add left margin for labels
+}
+
+
 
 
 

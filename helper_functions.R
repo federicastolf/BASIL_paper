@@ -179,9 +179,6 @@ compute_posterior_samples_cc <- function(
 
 
 
-
-
-
 predict_oos_Y <- function(Y_train, Y_test, impute_set, fit, P_C){
   
   # params posterior samples
@@ -220,3 +217,43 @@ compute_covariance_posterior_mean <- function(Y, fit){
 }
 
 
+compute_Psiposterior = function(Lambda_samples, C){
+  N_samples = dim(Lambda_samples)[3]
+  q = dim(C)[2]
+  k = dim(Lambda_samples)[2]
+  tCCt = crossprod(C)
+  s_cross_C = svd(tCCt)
+  V_C = s_cross_C$u
+  D_C = diag(as.vector(sqrt(s_cross_C$d)))
+  D_C_inv = diag(as.vector(1/sqrt(s_cross_C$d)))
+  U_C = C %*% V_C %*% D_C_inv
+  P_C <- tcrossprod(U_C)
+  Q_C <- diag(1, p, p) - P_C
+  
+  Psi_samples = array(0, dim=c(p, k, N_samples))
+  for(i in 1:N_samples){
+    Psi_samples[,,i] =  Q_C %*% Lambda_samples[,,i]
+  }
+  return(Psi_samples)
+}
+
+
+compute_Gammaposterior = function(Lambda_samples, C){
+  N_samples = dim(Lambda_samples)[3]
+  q = dim(C)[2]
+  k = dim(Lambda_samples)[2]
+  tCCt = crossprod(C)
+  s_cross_C = svd(tCCt)
+  V_C = s_cross_C$u
+  D_C = diag(as.vector(sqrt(s_cross_C$d)))
+  D_C_inv = diag(as.vector(1/sqrt(s_cross_C$d)))
+  U_C = C %*% V_C %*% D_C_inv
+  # (C'C)^{-1}C'
+  C_left_pinv = V_C %*% D_C_inv %*% t(U_C)
+  
+  Gamma_samples = array(0, dim=c(q, k, N_samples))
+  for(i in 1:N_samples){
+    Gamma_samples[,,i] = C_left_pinv %*% Lambda_samples[,,i]
+  }
+  return(Gamma_samples)
+}
