@@ -1,5 +1,4 @@
 library(msigdbr)
-library(tidyverse)
 
 source("FACTOR_CODE_update.R")
 
@@ -56,7 +55,7 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
   return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C))
 }
 
-run_simulation_study = function(param, Nsim, seed) {
+run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
   set.seed(seed)
   seeds_g = sample.int(9000, Nsim)
@@ -81,7 +80,7 @@ run_simulation_study = function(param, Nsim, seed) {
     ## BASIL 
     ptmB <- proc.time()
     est_kBASIL <- estimate_latent_dimension(Ys, k_max = 50)
-    fitBASIL <- compute_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
+    fitBASIL <- BASIL_point_estimates(Ys, Cs, k = est_kBASIL$k_hat)
     etmB <- proc.time() - ptmB
     results$timeBASIL[s] <- etmB[1] + etmB[2]
     posterior_mean_BASIL <- compute_covariance_posterior_mean(Ys, fitBASIL)$Lambda_outer_mean
@@ -124,19 +123,19 @@ run_simulation_study = function(param, Nsim, seed) {
   
   #Convert to tidy data frame
   df_basil <- data.frame(err_norm = results$err_normBASIL, time = results$timeBASIL,
-    k_est = results$kfitBASIL, model = "BASIL", p = p, scenario = scenario_name,
+    k_est = results$kfitBASIL, model = "BASIL", p = param$p, scenario = scenario_name,
     stringsAsFactors = FALSE)
   
   df_basil_post <- data.frame(err_norm = results$err_normBASIL_posterior,
     time = results$timeBASIL_posterior, k_est = results$kfitBASIL, model = "BASIL_posterior",
-    p = p,scenario = scenario_name, stringsAsFactors = FALSE)
+    p = param$p,scenario = scenario_name, stringsAsFactors = FALSE)
   
   df_rotate <- data.frame(err_norm = results$err_normROTATE, time = results$timeROTATE,
-    k_est = results$kfitROTATE, model = "ROTATE", p = p, scenario = scenario_name, 
+    k_est = results$kfitROTATE, model = "ROTATE", p = param$p, scenario = scenario_name, 
     stringsAsFactors = FALSE)
   
   df_plier <- data.frame(err_norm = results$err_normPLIER, time = results$timePLIER,
-    k_est = results$kfitPLIER, model = "PLIER", p = p, scenario = scenario_name,
+    k_est = results$kfitPLIER, model = "PLIER", p = param$p, scenario = scenario_name,
     stringsAsFactors = FALSE)
   
   # Combine all methods
@@ -164,11 +163,11 @@ run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha
     Lambda0_outer <- datas$Lambda0_outer
     
     # Compute BASIL
-    fitBASIL <- compute_point_estimates(Ys, Cs, k = param$k)
+    fitBASIL <- BASIL_point_estimates(Ys, Cs, k = param$k)
     # Sample loadings given M = M_hat
     params_posterior_samples <- compute_posterior_samples_cc(
-      Ys, fitBASIL$Lambda_C, fitBASIL$Lambda_N, fitBASIL$tau_C, 
-      fitBASIL$tau_N, fitBASIL$sigma_sq, fitBASIL$P_C)
+      Ys, fitBASIL$Lambda_C, fitBASIL$Lambda_N, fitBASIL$tau_gamma, 
+      fitBASIL$tau_psi, fitBASIL$sigma_sq, fitBASIL$P_C)
     Lambda_outer_posterior_samples <- sample_Lambda_outer(
       params_posterior_samples$Lambda_samples[subsample_index, , ])
     Lambda_outer_qs <- apply(Lambda_outer_posterior_samples, c(1, 2),
@@ -184,10 +183,21 @@ run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha
                   s, Nsim, mean(ccCoverage[1:s])))
     }
   }
-  # Create data frame
   coverage_df = data.frame(coverage = ccCoverage, scenario = scenario_name, 
-                           p = as.character(p), stringsAsFactors = FALSE)
+                           p = as.character(param$p), stringsAsFactors = FALSE)
   
-  # return(list(data = coverage_df,coverage_vector = ccCoverage))
   return(coverage_df)
+}
+
+
+# Function to create scatter plot with identity line
+plot_correlation_scatter = function(data, title, lim_ax, point_color = "#1170aa") {
+  ggplot(data, aes(x = Observed, y = Predicted)) +
+    geom_point(color = point_color, shape = 1) +
+    geom_abline(intercept = 0, slope = 1, color = "black", linewidth = 1) +
+    labs(title = title, x = "Observed", y = "Predicted") +
+    xlim(lim_ax) + ylim(lim_ax) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = 20),
+          axis.title = element_text(size = 16))
 }

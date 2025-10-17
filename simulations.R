@@ -1,10 +1,13 @@
 library(PLIER)
+# library(devtools)
+# install_github("federicastolf/BASIL")
+library(BASIL)
+library(ggplot2)
+library(latex2exp)
 
 rm(list=ls())
 
-source('helper_functions.R')
-source("simulation_helper.R")
-
+source("helper.R")
 
 #------------------------------------------------------------------------------#
 #------------# accuracy covariance and k simulations (Fig 2a, 2c) #------------#
@@ -41,6 +44,8 @@ Simboxplot_df = rbind(df_high_p3000, df_low_p3000, df_high_p1000, df_low_p1000)
 #------# MSE boxplot #-------#
 
 nl = c("1000"="1000 genes", "3000"="3000 genes")
+
+# N.B. filter out BASIL_posterior or decide if you want to keep it 
 
 Fnplot = ggplot(Simboxplot_df, aes(x = scenario, y = err_norm, fill = model))+
   geom_boxplot(alpha=0.7) +
@@ -116,7 +121,7 @@ sd_gammaL = c(0.001, 0.09, 0.14, 0.2, 0.25 , 0.28, 0.31, 0.34, 0.37)
 
 set.seed(463)
 seeds_g = sample.int(9000, Nsim)
-tauC = tauN = ratio = matrix(0, length(sd_gammaL), Nsim)
+tau_gamma = tau_psi = ratio = matrix(0, length(sd_gammaL), Nsim)
 
 for(g in 1:length(sd_gammaL)){
   param = list(n = 500, p = 1000, k = 10, q = 500, sigma_sq_0 = 2, sd_gamma = sd_gammaL[g],
@@ -131,19 +136,19 @@ for(g in 1:length(sd_gammaL)){
     Cs = datas$C
     
     # compute BASIL
-    fitBASIL = compute_point_estimates(Ys, Cs, k = param$k)
-    tauN[g,s] = fitBASIL$tau_N 
-    tauC[g,s] = fitBASIL$tau_C
-    ratio[g,s] = tauC[g,s]/tauN[g,s]
+    fitBASIL = BASIL_point_estimates(Ys, Cs, k = param$k)
+    tau_gamma[g,s] = fitBASIL$tau_gamma
+    tau_psi[g,s] = fitBASIL$tau_psi
+    ratio[g,s] = tau_gamma[g,s]/tau_psi[g,s]
   }
 }
 
 ## plot
 vR = c(t(ratio))
-sig = rep(1:9, each = 25)
+sig = rep(1:9, each = 2)
 dataPlot_bs = cbind.data.frame(vR,sig)
 
-p_bs = ggplot(dataPlot:bs, aes(y = vR, group = sig))+
+p_bs = ggplot(dataPlot_bs, aes(y = vR, group = sig))+
   geom_boxplot(alpha=0.7, fill="lightblue1") +
   xlab("Biological signal") +
   ylab(TeX("variance $\\Gamma$ / variance $\\Psi$")) +
@@ -168,30 +173,27 @@ p_bs
 #------------------------------------------------------------------------------#
 #-----------------# Uncertainty quantification (Fig 2d) #----------------------#
 
+subsample_size = 200
 subsample_index = 1:subsample_size
 
 # Setting 1: High biological signal, p=3000
-coverage_high_p3000 <- run_coverage_simulation(
-  param1, subsample_index, scenario_name = "high", subsample_size = 200, alpha = 0.05, 
-  Nsim = Nsim, seed = 463)
+coverage_high_p3000 <- run_coverage_simulation(param1, scenario_name = "high", 
+  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 2: Low biological signal, p=3000
-coverage_low_p3000 <- run_coverage_simulation(
-  param2, subsample_index, scenario_name = "low", subsample_size = 200, alpha = 0.05, 
-  Nsim = Nsim, seed = 463)
+coverage_low_p3000 <- run_coverage_simulation(param2, scenario_name = "low", 
+  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 3: High biological signal, p=1000
-coverage_high_p1000 <- run_coverage_simulation(
-  param3, subsample_index, scenario_name = "high", subsample_size = 200, alpha = 0.05, 
-  Nsim = Nsim, seed = 463)
+coverage_high_p1000 <- run_coverage_simulation(param3, scenario_name = "high", 
+  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 4: Low biological signal, p=1000
-coverage_low_p1000 <- run_coverage_simulation(
-  param4, subsample_index, scenario_name = "low", subsample_size = 200, alpha = 0.05, 
-  Nsim = Nsim, seed = 463)
+coverage_low_p1000 <- run_coverage_simulation(param4, scenario_name = "low", 
+  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
-SimUQ = rbind(coverage_high_p3000$data, coverage_low_p3000$data, coverage_high_p5000$data,
-  coverage_low_p5000$data)
+SimUQ = rbind(coverage_high_p3000, coverage_low_p3000, coverage_high_p1000,
+  coverage_low_p1000)
 
 UQplot = ggplot(SimUQ, aes(x = scenario, y = coverage))+
   geom_boxplot(alpha=0.7, fill="lightblue") +
