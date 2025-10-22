@@ -39,6 +39,8 @@ corrBasil = cov2cor(CovBasil_sub)
 # fit PLIER
 PLresult = PLIER(t(Y), geneSetMat, k = est_k$k_hat, doCrossval = F, scale = F)
 covPLIER = PLresult$Z %*% (cov(t(PLresult$B))) %*% t(PLresult$Z)
+sigma_sqPLIER = mean((Y - t(PLresult$B) %*% t(PLresult$Z))^2)
+covPLIER = covPLIER + sigma_sqPLIER * diag(ncol(Y))
 CovPLIER_sub = covPLIER[id,id]
 corrPLIER = cov2cor(CovPLIER_sub)
 
