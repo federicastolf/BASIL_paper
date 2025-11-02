@@ -8,8 +8,13 @@ rm(list=ls())
 
 load("data_fever/data_Gfever.Rdata")
 source("helper.R")
-# source('helper_functions.R')
-# source("plot_functions.R")
+sc = colSums(geneSetMat)
+pr1 = which(sc<11)
+geneSetMat = geneSetMat[,-pr1]
+sr = rowSums(geneSetMat)
+gr1 = which(sr==0)
+geneSetMat = geneSetMat[-gr1,]
+data = data[-gr1,]
 
 Y = t(data)
 Y = scale(Y)
