@@ -222,3 +222,61 @@ genePsi = rownames(geneSetMat[top_Psi,])
 genePsi
 
 
+
+#------------------------------------------------------------------------------#
+#----------------------------------# Bar plot #--------------------------------#
+
+
+c_sq = rowSums(fitGF$Lambda_C^2)[id]
+p_sq = rowSums(fitGF$Lambda_N^2)[id]
+
+gene_labs = colnames(Y)[id]
+
+
+df = tibble(
+  i = seq_along(c_sq),
+  gene = gene_labs,
+  CGamma = c_sq,
+  Psi    = p_sq
+) %>%
+  mutate(total = CGamma + Psi,
+         CGamma = CGamma / total,
+         Psi    = Psi / total) %>%
+  select(-total) %>%
+  pivot_longer(cols = c(CGamma, Psi), names_to = "component", values_to = "prop")
+
+df = df %>%
+  group_by(gene) %>%
+  arrange(desc(component == "CGamma"), .by_group = TRUE) %>%
+  ungroup()
+
+df$gene = factor(
+  df$gene,
+  levels = df %>%
+    filter(component == "CGamma") %>%
+    arrange(desc(prop)) %>%
+    pull(gene)
+)
+
+ggplot(df, aes(x = gene, y = prop, fill = component)) +
+  geom_col(width = 0.9) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.001)) +
+  scale_fill_manual(
+    name = "",
+    values = c(CGamma = "#6A3D9A", Psi = "#33A02C"),
+    labels = c(
+      expression(C~Gamma),
+      expression(Psi)
+    )
+  ) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
+    legend.text = element_text(size = 14),
+    plot.margin = margin(5, 10, 5, 10)
+  ) +
+  theme(panel.background = element_rect(fill = "#eeeeee", color = NA),
+        plot.background  = element_rect(fill = "#eeeeee", color = NA))
+dev.new()
