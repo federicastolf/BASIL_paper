@@ -3,6 +3,8 @@ library(tidyverse)
 library(scico)
 library(gridExtra)
 library(PLIER)
+library(dplyr)
+library(tidyr)
 
 rm(list=ls())
 
@@ -226,7 +228,6 @@ genePsi
 #------------------------------------------------------------------------------#
 #----------------------------------# Bar plot #--------------------------------#
 
-
 c_sq = rowSums(fitGF$Lambda_C^2)[id]
 p_sq = rowSums(fitGF$Lambda_N^2)[id]
 
@@ -241,8 +242,7 @@ df = tibble(
 ) %>%
   mutate(total = CGamma + Psi,
          CGamma = CGamma / total,
-         Psi    = Psi / total) %>%
-  select(-total) %>%
+         Psi    = Psi / total)  %>%
   pivot_longer(cols = c(CGamma, Psi), names_to = "component", values_to = "prop")
 
 df = df %>%
@@ -257,26 +257,25 @@ df$gene = factor(
     arrange(desc(prop)) %>%
     pull(gene)
 )
+df$component <- factor(df$component, levels = c("CGamma", "Psi"))
 
-ggplot(df, aes(x = gene, y = prop, fill = component)) +
-  geom_col(width = 0.9) +
-  scale_y_continuous(expand = c(0,0), limits = c(0,1.001)) +
+var_explained_plot <- ggplot(df, aes(x = gene, y = prop, fill = component)) +
+  geom_col(width = 0.9, position = position_stack(reverse = TRUE)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.0001)) +
   scale_fill_manual(
     name = "",
     values = c(CGamma = "#6A3D9A", Psi = "#33A02C"),
-    labels = c(
-      expression(C~Gamma),
-      expression(Psi)
-    )
+    labels = c(expression(C~Gamma), expression(Psi))
   ) +
   labs(x = NULL, y = NULL) +
-  theme_minimal(base_size = 13) +
+  theme_minimal() +
   theme(
     panel.grid = element_blank(),
-    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, vjust = 1),
-    legend.text = element_text(size = 14),
-    plot.margin = margin(5, 10, 5, 10)
-  ) +
-  theme(panel.background = element_rect(fill = "#eeeeee", color = NA),
-        plot.background  = element_rect(fill = "#eeeeee", color = NA))
-dev.new()
+    axis.text.x = element_text(size = 9, angle = 45, hjust = 1, vjust = 1),
+    legend.text = element_text(size = 25),
+    plot.margin = margin(8, 10, 5, 20),
+    axis.text.y = element_text(size = 15)
+  )
+
+var_explained_plot
+#ggsave('var_explained_plot.png', plot=var_explained_plot, device = 'png', width = 15, height = 7.5)
