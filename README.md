@@ -15,4 +15,5 @@ install_github("federicastolf/BASIL")
 
 The repository includes the following files:
 - [simulations](https://github.com/federicastolf/BASIL_paper/blob/main/simulations.R) file to replicate the simulation study
+- [getGFdata](https://github.com/federicastolf/BASIL_paper/blob/main/getGFdata.R) file to obtain the global fever data (GSE211567)
 - [GFanalysis](https://github.com/federicastolf/BASIL_paper/blob/main/GFeverAnalysis.R) file to replicate the analysis on global fever data
