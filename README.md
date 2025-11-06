@@ -1,4 +1,4 @@
-# BASIl-paper
+# BASIL paper
 
 This repository contains the R code to replicate the simulations study and the data analysis in the paper Pathway-based Bayesian factor models for gene expression data.
 
