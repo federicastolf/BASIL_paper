@@ -16,8 +16,6 @@ get_geneSetMatrix = function(p, q){
   gene_set = gene_set[, colSums(gene_set) > 0]
   
   # N.B. it does not ensure q is the q selected at the beginning but q_selected<=q
-  # I don't think is a problem, just put q bigger as input
-  
   return(gene_set)
 }
 
@@ -26,7 +24,6 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
   
   set.seed(mseed)
   C = get_geneSetMatrix(p, q)
-  #C = unname(C)
   q = ncol(C)
   
   # compute P_C = C(C'C)^{-1}C' and Q_C = I_p - P_C
