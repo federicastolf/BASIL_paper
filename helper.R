@@ -20,7 +20,7 @@ get_geneSetMatrix = function(p, q){
 }
 
 
-syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
+syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, heteroscedastik=F){
   
   set.seed(mseed)
   C = get_geneSetMatrix(p, q)
@@ -46,10 +46,15 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed){
   Lambda0_outer = tcrossprod(Lambda_0)
   
   # data
-  Y = M_0 %*% t(Lambda_0) + sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow=n) 
+  if(!heteroscedastik){
+    Y = M_0 %*% t(Lambda_0) + sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow=n) 
+  } else {
+    Y = M_0 %*% t(Lambda_0) + matrix(rnorm(n*p), nrow=n) %*% diag(sqrt(runif(p, 0.5*sigma_sq_0, 2*sigma_sq_0)))
+  }
   colnames(Y) = rownames(C)
   
-  return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C))
+  return(list("Y" = Y, "Lambda0_outer" = Lambda0_outer, "C" = C, 
+              "M_0" = M_0))
 }
 
 run_simulation_study = function(param, scenario_name, Nsim, seed) {
@@ -59,20 +64,30 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
   # Initialize result storage
   results = list(kfitBASIL = numeric(Nsim), err_normBASIL = numeric(Nsim),
-    err_normBASIL_posterior = numeric(Nsim), timeBASIL = numeric(Nsim),
-    timeBASIL_posterior = numeric(Nsim), kfitROTATE = numeric(Nsim), 
-    err_normROTATE = numeric(Nsim), timeROTATE = numeric(Nsim),
-    kfitPLIER = numeric(Nsim), err_normPLIER = numeric(Nsim), 
-    timePLIER = numeric(Nsim), parameters = param)
+                 err_normBASIL_posterior = numeric(Nsim), 
+                 err_factorsBASIL = numeric(Nsim), err_factorsBASIL_posterior = numeric(Nsim),
+                 timeBASIL = numeric(Nsim), timeBASIL_posterior = numeric(Nsim), 
+                 kfitROTATE = numeric(Nsim), err_normROTATE = numeric(Nsim), 
+                 err_factorsROTATE = numeric(Nsim), timeROTATE = numeric(Nsim),
+                 kfitPLIER = numeric(Nsim), err_normPLIER = numeric(Nsim), 
+                 timePLIER = numeric(Nsim), 
+                 err_normPLIER_ktrue = numeric(Nsim), timePLIER_ktrue = numeric(Nsim),
+                 err_factorsPLIER_ktrue = numeric(Nsim),
+                 parameters = param)
+  
+  if(is.null(param$heteroscedastik)){
+    param$heteroscedastik = F
+  }
   
   for (s in 1:Nsim) {
     # Simulate data
     datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q,
-      sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
-      sd_psi = param$sd_psi, mseed = seeds_g[s])
+                          sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
+                          sd_psi = param$sd_psi, mseed = seeds_g[s], heteroscedastik=param$heteroscedastik)
     Ys = datas$Y
     Cs = datas$C
     Lambda0_outer = datas$Lambda0_outer
+    M_0 <- datas$M_0
     
     ## BASIL 
     ptmB <- proc.time()
@@ -87,8 +102,19 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
     results$err_normBASIL[s] <- norm(tcrossprod(Lambda_BASIL) - Lambda0_outer, 
                                      type = 'F')/norm(Lambda0_outer, type = 'F')
     results$kfitBASIL[s] <- est_kBASIL$k_hat
-    results$err_normBASIL_posterior[s] <- norm(posterior_mean_BASIL - Lambda0_outer, 
+    results$err_normBASIL_posterior[s] <- norm(posterior_mean_BASIL - Lambda0_outer,  
                                                type = 'F')/norm(Lambda0_outer, type = 'F')
+    
+    params_posterior_samples <- compute_posterior_samples_cc(
+      Ys, fitBASIL$Lambda_C, fitBASIL$Lambda_N, fitBASIL$tau_gamma, 
+      fitBASIL$tau_psi, fitBASIL$sigma_sq, fitBASIL$P_C)
+    eta_samples <- sample_latent_factors(Ys, params_posterior_samples$Lambda_samples, params_posterior_samples$sigma_sq_samples)
+    pr_hat <- procrustes(fitBASIL$M, M_0)
+    results$err_factorsBASIL[s] <- norm(pr_hat$X.new - M_0, type = 'F')/norm(M_0, type = 'F')
+    pr_tilde <- procrustes(eta_samples$M_mean, M_0)
+    results$err_factorsBASIL_posterior[s] <-  norm(pr_tilde$X.new - M_0, type = 'F')/norm(M_0, type = 'F')
+    
+    
     
     ## ROTATE 
     K <- param$k
@@ -96,13 +122,16 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
     start <- list(B = startB, sigma = rep(1, K), theta = rep(0.5, K))
     ptmR <- proc.time()
     fitROTATE <- FACTOR_ROTATE(Y = Ys, lambda0 = 5, lambda1 = 0.001, start = start,
-      K = K, epsilon = 0.05, alpha = 1 / param$p, PX = TRUE, approximate = TRUE, 
-      stop = 100, varimax = TRUE, plot = FALSE)
+                               K = K, epsilon = 0.05, alpha = 1 / param$p, PX = TRUE, approximate = TRUE, 
+                               stop = 100, varimax = TRUE, plot = FALSE)
     etmR <- proc.time() - ptmR
     results$timeROTATE[s] <- etmR[1] + etmR[2]
     Lambda_ROTATE <- fitROTATE$B
     results$err_normROTATE[s] <- norm(tcrossprod(Lambda_ROTATE) - Lambda0_outer,
                                       type = 'F')/norm(Lambda0_outer, type = 'F')
+    M_hat_rotate <- latent_factor_full_conditional_mean(Ys, fitROTATE$B, fitROTATE$sigma^2)
+    pr_rotate <- procrustes(M_hat_rotate, M_0)
+    results$err_factorsROTATE[s]  <- norm(pr_rotate$X.new - M_0, type = 'F')/norm(M_0, type = 'F')
     
     ## PLIER 
     ptmP <- proc.time()
@@ -112,6 +141,17 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
     results$kfitPLIER[s] <- nrow(fitPLIER$B)
     covPLIER <- (fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z))/param$n
     results$err_normPLIER[s] <- norm(covPLIER - Lambda0_outer, type = 'F')/norm(Lambda0_outer, type = 'F')
+    ## PLIER (true k)
+    ptmP <- proc.time()
+    fitPLIER <- PLIER(t(Ys), Cs, scale = FALSE, minGenes = 1, doCrossval = TRUE, k=param$k)
+    etmP <- proc.time() - ptmP
+    results$timePLIER_ktrue[s] <- etmP[1] + etmP[2]
+    covPLIER <- (fitPLIER$Z %*% (fitPLIER$B %*% t(fitPLIER$B)) %*% t(fitPLIER$Z))/param$n
+    results$err_normPLIER_ktrue[s] <- norm(covPLIER - Lambda0_outer, type = 'F')/norm(Lambda0_outer, type = 'F')
+    s_plier <- svd(t(fitPLIER$B))
+    pr_plier <- procrustes(sqrt(param$n) * s_plier$u, M_0)
+    results$err_factorsPLIER_ktrue[s] <- norm(pr_plier$X.new - M_0, type = 'F')/norm(M_0, type = 'F')
+    
     
     if (s %% 5 == 0) {
       cat(sprintf("Completed simulation %d/%d\n", s, Nsim))
@@ -120,27 +160,35 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
   #Convert to tidy data frame
   df_basil <- data.frame(err_norm = results$err_normBASIL, time = results$timeBASIL,
-    k_est = results$kfitBASIL, model = "BASIL", p = param$p, scenario = scenario_name,
-    stringsAsFactors = FALSE)
+                         k_est = results$kfitBASIL, err_factors = results$err_factorsBASIL,
+                         model = "BASIL", p = param$p, scenario = scenario_name,
+                         stringsAsFactors = FALSE)
   
   df_basil_post <- data.frame(err_norm = results$err_normBASIL_posterior,
-    time = results$timeBASIL_posterior, k_est = results$kfitBASIL, model = "BASIL_posterior",
-    p = param$p,scenario = scenario_name, stringsAsFactors = FALSE)
+                              time = results$timeBASIL_posterior, k_est = results$kfitBASIL,
+                              err_factors = results$err_factorsBASIL_posterior, model = "BASIL_posterior",
+                              p = param$p,scenario = scenario_name, stringsAsFactors = FALSE)
   
   df_rotate <- data.frame(err_norm = results$err_normROTATE, time = results$timeROTATE,
-    k_est = results$kfitROTATE, model = "ROTATE", p = param$p, scenario = scenario_name, 
-    stringsAsFactors = FALSE)
+                          err_factors = results$err_factorsROTATE,
+                          k_est = results$kfitROTATE, model = "ROTATE", p = param$p, scenario = scenario_name, 
+                          stringsAsFactors = FALSE)
   
   df_plier <- data.frame(err_norm = results$err_normPLIER, time = results$timePLIER,
-    k_est = results$kfitPLIER, model = "PLIER", p = param$p, scenario = scenario_name,
-    stringsAsFactors = FALSE)
+                         k_est = results$kfitPLIER,
+                         model = "PLIER", p = param$p, scenario = scenario_name, 
+                         err_factors = rep(NA, Nsim),
+                         stringsAsFactors = FALSE)
+  
+  df_plier_ktrue <- data.frame(err_norm = results$err_normPLIER_ktrue, time = results$timePLIER_ktrue, err_factors = results$err_factorsPLIER_ktrue,
+                               k_est = param$k, model = "PLIER-true k", p = param$p, scenario = scenario_name,
+                               stringsAsFactors = FALSE)
   
   # Combine all methods
-  df_combined <- rbind(df_basil, df_basil_post, df_rotate, df_plier)
+  df_combined <- rbind(df_basil, df_basil_post, df_rotate, df_plier, df_plier_ktrue)
   
   return(df_combined)
 }
-
 # Function to run coverage simulation
 run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha, 
                                     Nsim, seed){
