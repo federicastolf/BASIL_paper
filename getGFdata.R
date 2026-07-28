@@ -1,7 +1,7 @@
 
 library(tidyverse)
 library(limma)
-library(edgeR)
+# library(edgeR)
 library(openxlsx)
 library(readxl)
 library(data.table)
@@ -50,3 +50,5 @@ sr = rowSums(geneSetMat)
 gr1 = which(sr==0)
 geneSetMat = geneSetMat[-gr1,]
 data = data[-gr1,]
+
+# save(data, geneSetMat, file="data_Gfever.Rdata")

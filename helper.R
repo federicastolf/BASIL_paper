@@ -57,6 +57,59 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, hetero
               "M_0" = M_0))
 }
 
+syntheticDataPoisson = function(n, p, k, q, sd_gamma, sd_psi, mseed, offset = 2,
+                                link = c("softplus", "exp"), nonneg_loadings = TRUE) {
+  link = match.arg(link)
+  set.seed(mseed)
+  C = get_geneSetMatrix(p, q)
+  q = ncol(C)
+  
+  # compute P_C = C(C'C)^{-1}C' and Q_C = I_p - P_C
+  tCCt = crossprod(C)
+  s_cross_C = svd(tCCt)
+  V_C = s_cross_C$u
+  D_C = diag(as.vector(sqrt(s_cross_C$d)))
+  D_C_inv = diag(as.vector(1/sqrt(s_cross_C$d)))
+  U_C = C %*% V_C %*% D_C_inv
+  P_C = tcrossprod(U_C)
+  Q_C = diag(1, p, p) - P_C
+  
+  # factors
+  M_0 = matrix(rnorm(n * k, 0, 1), ncol = k)
+  
+  # loadings
+  Gamma_0 = matrix(rnorm(q * k, 0, sd_gamma), ncol = k)
+  Psi_raw = matrix(rnorm(p * k, 0, sd_psi), ncol = k)
+  if (nonneg_loadings) {
+    Gamma_0 = abs(Gamma_0)
+    Psi_raw = abs(Psi_raw)
+  }
+  C_Gamma_0 = C %*% Gamma_0
+  Psi_0 = Q_C %*% Psi_raw   
+  Lambda_0  = C_Gamma_0 + Psi_0
+  Lambda0_outer = tcrossprod(Lambda_0)
+  
+  # link and rate  
+  Z = M_0 %*% t(Lambda_0) 
+  g = switch(link,
+             softplus = function(x) log1p(exp(x)),
+             exp = function(x) exp(x))
+  mu = g(offset + Z)
+  mu[mu < 1e-8] = 1e-8   # numerical safety
+  
+  # poisson
+  Y = matrix(rpois(n * p, lambda = as.vector(mu)), nrow = n, ncol = p)
+  colnames(Y) = rownames(C)
+  
+  Y_log = log1p(Y)
+  Y_log = scale(Y_log, center = TRUE, scale = TRUE)
+  attributes(Y_log)$`scaled:center` = NULL
+  attributes(Y_log)$`scaled:scale` = NULL
+  
+  return(list(Y = Y, Y_log = Y_log, Lambda0_outer = Lambda0_outer, C = C, mu = mu))
+}
+
+
 run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
   set.seed(seed)

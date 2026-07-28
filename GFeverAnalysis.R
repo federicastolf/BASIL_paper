@@ -91,6 +91,7 @@ obspPLot = grid.arrange(p1_obs, p2_obs, nrow=1)
 basil_loadings_samples = compute_posterior_samples_cc(
   Y, fitGF$Lambda_C, fitGF$Lambda_N, fitGF$tau_gamma, fitGF$tau_psi,
   fitGF$sigma_sq, fitGF$P_C, v0=1, sigma_sq_0=1, n_MC=500)
+# save(basil_loadings_samples, file="UQ_BASIL.Rdata")
 
 # posterior samples of Gamma
 Gamma_samples = compute_Gamma_samples(basil_loadings_samples$Lambda_samples,
@@ -221,3 +222,36 @@ var_explained_plot
 
 # ggsave('var_explained_plot50.png', plot=var_explained_plot, device = 'png', 
 #        width = 15, height = 7.5)
+
+
+#--------------------------------# network plot #------------------------------#
+
+# idx <- order(gene_variances, decreasing = TRUE)[1:100]
+# CovPLIER_subx = covPLIER[idx,idx]
+# corrPLIERx = cov2cor(CovPLIER_subx)
+# 
+# # Compute correlation posterior 
+# cor_posterior <- compute_correlation_posterior_samples_cc(
+#   Lambda_samples = basil_loadings_samples$Lambda_samples[idx,,],
+#   sigma_sq_samples = basil_loadings_samples$sigma_sq_samples,
+#   samples = TRUE
+# )
+# CorrBasil_mean <- cor_posterior$posterior_mean
+# CorrBasil_mean_zeroed <- CorrBasil_mean
+# # Compute 95% credible intervals
+# corrBasil_qs <- apply(cor_posterior$posterior_samples, c(1, 2), quantile, 
+#                       probs = c(0.025, 0.975))
+# CorrBasil_mean_zeroed[((corrBasil_qs[1,,] <0) & (corrBasil_qs[2,,] >0))] = 0
+# # Proportion of correlations set to zero
+# mean(CorrBasil_mean_zeroed==0)
+# 
+# Y_subset <- Y[,idx]
+# row.names(CorrBasil_mean_zeroed) <- colnames(Y_subset)
+# colnames(CorrBasil_mean_zeroed) <- colnames(Y_subset)
+# 
+# network_plotBASIL <- plot_gene_network(CorrBasil_mean_zeroed, n = 50, max_overlaps = 50)
+# network_plotBASIL
+# 
+# 
+# network_plotPLIER <- plot_gene_network(corrPLIERx, n = 50)
+# network_plotPLIER
