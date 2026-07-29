@@ -301,6 +301,7 @@ plot_correlation_scatter = function(data, title, lim_ax, point_color = "#1170aa"
 }
 
 latent_factor_full_conditional_mean <- function(Y, Lambda, Sigma){
-  mean_f <- Y %*% diag(1/Sigma) %*% Lambda %*% solve(t(Lambda) %*% diag(1/Sigma) %*% Lambda)
+  k <- ncol(Lambda)
+  mean_f <- Y %*% diag(1/Sigma) %*% Lambda %*% solve(t(Lambda) %*% diag(1/Sigma) %*% Lambda + diag(1, k, k))
   return(mean_f)
 }
