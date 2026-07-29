@@ -246,3 +246,8 @@ plot_correlation_scatter = function(data, title, lim_ax, point_color = "#1170aa"
     theme(plot.title = element_text(hjust = 0.5, size = 20),
           axis.title = element_text(size = 16))
 }
+
+latent_factor_full_conditional_mean <- function(Y, Lambda, Sigma){
+  mean_f <- Y %*% diag(1/Sigma) %*% Lambda %*% solve(t(Lambda) %*% diag(1/Sigma) %*% Lambda)
+  return(mean_f)
+}
