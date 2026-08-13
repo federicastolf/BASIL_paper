@@ -7,7 +7,7 @@ library(latex2exp)
 
 rm(list=ls())
 
-source("helper.R")
+source("functs/helper.R")
 
 #------------------------------------------------------------------------------#
 #------------# accuracy covariance and k simulations (Fig 2a, 2c) #------------#

@@ -3,7 +3,7 @@ library(tidyverse)
 
 rm(list=ls())
 
-source("helper.R")
+source("functs/helper.R")
 Nsim = 25
 
 #--------------# simulate data and save for export in Python #-----------------#
