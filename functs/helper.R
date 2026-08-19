@@ -109,6 +109,48 @@ syntheticDataPoisson = function(n, p, k, q, sd_gamma, sd_psi, mseed, offset = 2,
   return(list(Y = Y, Y_log = Y_log, Lambda0_outer = Lambda0_outer, C = C, mu = mu))
 }
 
+# Negative binomial counts with the same factor structure on the loadings used in
+# syntheticData(), imposed on the log-mean. 
+syntheticDataNB = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed,
+                           mu_0 = 2, size_nb = 10) { 
+  
+  set.seed(mseed)
+  C = get_geneSetMatrix(p, q)
+  q = ncol(C)
+  
+  # compute P_C = C(C'C)^{-1}C' and Q_C = I_p - P_C
+  tCCt = crossprod(C)
+  s_cross_C = svd(tCCt)
+  V_C = s_cross_C$u
+  D_C_inv = diag(as.vector(1/sqrt(s_cross_C$d)))
+  U_C = C %*% V_C %*% D_C_inv
+  P_C = tcrossprod(U_C)
+  Q_C = diag(1, p, p) - P_C
+  
+  # factors
+  M_0 = matrix(rnorm(n*k, 0, 1), ncol = k)
+  # loadings
+  Gamma_0 = matrix(rnorm(q*k, 0, sd_gamma), ncol = k)
+  C_Gamma_0 = C %*% Gamma_0
+  Psi_0 = Q_C %*% matrix(rnorm(p*k, 0, sd_psi), ncol = k)
+  Lambda_0 = C_Gamma_0 + Psi_0
+  Lambda0_outer = tcrossprod(Lambda_0)
+  
+  # linear predictor on the log scale
+  Eta = matrix(mu_0, nrow = n, ncol = p, byrow = TRUE) +
+    M_0 %*% t(Lambda_0) +
+    sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow = n)
+  Mu = exp(pmin(Eta, eta_cap))
+  
+  # negative binomial counts
+  Y_counts = matrix(rnbinom(n*p, size = size_nb, mu = as.vector(Mu)), nrow = n, ncol = p)
+  Y_log = log1p(Y_counts)
+  colnames(Y_counts) = colnames(Y_log) = colnames(Eta) = rownames(C)
+  
+  return(list("Y_counts" = Y_counts, "Y" = Y_log, "Eta" = Eta, "M_0" = M_0, 
+              "Lambda_0" = Lambda_0, "Lambda0_outer" = Lambda0_outer, "C" = C))
+}
+
 
 run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
