@@ -10,7 +10,7 @@ rm(list=ls())
 source("functs/helper.R")
 
 #------------------------------------------------------------------------------#
-#------------# accuracy covariance and k simulations (Fig 2a, 2c) #------------#
+#-----------------# accuracy covariance and k simulations  #-------------------#
 
 Nsim = 25
 
@@ -45,11 +45,8 @@ Simboxplot_df = rbind(df_high_p3000, df_low_p3000, df_high_p1000, df_low_p1000)
 
 nl = c("1000"="1000 genes", "3000"="3000 genes")
 
-# N.B. filter out BASIL_posterior or decide if you want to keep it 
-
 Fnplot = ggplot(Simboxplot_df, aes(x = scenario, y = err_norm, fill = model))+
   geom_boxplot(alpha=0.7) +
-  # scale_fill_manual(values = c("green3","red", "steelblue")) +
   scale_fill_manual(values =c("#009E73", "#c85200","#1170aa")) +
   facet_wrap(~ p, scales = "fixed", labeller = as_labeller(nl)) +
   xlab("Biological signal") + ylab("Error") +
@@ -70,7 +67,7 @@ Fnplot
 
 
 #------------------------------------------------------------------------------#
-#------------------------# computation time (Fig 2b) #-------------------------#
+#-----------------------------# computation time  #----------------------------#
 
 param5 = list(n = 500, p = 4000, k = 10, q = 500, sigma_sq_0 = 15, sd_gamma = 0.7, 
               sd_psi = 0.1)
@@ -94,7 +91,6 @@ Timeavg = TimeSim %>% group_by(model,p) %>% summarise(mean = mean(time))
 Timeavg$p = as.numeric(Timeavg$p)
 Timeplot = ggplot(Timeavg, aes(x = p, y = log(mean), color = model, group = model)) + 
   geom_point() + geom_line() +
-  # scale_color_manual(values = c("green3","red", "steelblue")) +
   scale_color_manual(values = c("#009E73", "#c85200","#1170aa")) +
   xlab("Number of genes") + ylab("runtime (log scale)") +
   theme_light() +
@@ -115,7 +111,7 @@ Timeplot
 
 
 #------------------------------------------------------------------------------#
-#-------------# Ratio variances and biological signal (Fig 2e) #---------------#
+#-----------------# Ratio variances and biological signal #--------------------#
 
 sd_gammaL = c(0.001, 0.09, 0.14, 0.2, 0.25 , 0.28, 0.31, 0.34, 0.37)
 
@@ -171,50 +167,32 @@ p_bs
 
 
 #------------------------------------------------------------------------------#
-#-----------------# Uncertainty quantification (Fig 2d) #----------------------#
+#--------------------# Uncertainty quantification  #---------------------------#
 
 subsample_size = 200
 subsample_index = 1:subsample_size
+Nsimc = 300
 
 # Setting 1: High biological signal, p=3000
 coverage_high_p3000 <- run_coverage_simulation(param1, scenario_name = "high", 
-  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+  subsample_index, alpha = 0.05, Nsim = Nsimc, seed = 463)
 
 # Setting 2: Low biological signal, p=3000
 coverage_low_p3000 <- run_coverage_simulation(param2, scenario_name = "low", 
-  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+  subsample_index, alpha = 0.05, Nsim = Nsimc, seed = 463)
 
 # Setting 3: High biological signal, p=1000
 coverage_high_p1000 <- run_coverage_simulation(param3, scenario_name = "high", 
-  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+  subsample_index, alpha = 0.05, Nsim = Nsimc, seed = 463)
 
 # Setting 4: Low biological signal, p=1000
 coverage_low_p1000 <- run_coverage_simulation(param4, scenario_name = "low", 
-  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+  subsample_index, alpha = 0.05, Nsim = Nsimc, seed = 463)
 
 SimUQ = rbind(coverage_high_p3000, coverage_low_p3000, coverage_high_p1000,
   coverage_low_p1000)
 
-UQplot = ggplot(SimUQ, aes(x = scenario, y = coverage))+
-  geom_boxplot(alpha=0.7, fill="lightblue") +
-  facet_wrap(~ p, scales = "fixed", labeller = as_labeller(nl)) +
-  geom_hline(aes(yintercept=0.95), linetype = "dashed") +
-  xlab("Biological signal") +
-  ylab("Coverage") +
-  theme_light() +
-  ylim(c(0.6,1)) +
-  theme(legend.position = "top", legend.title = element_blank(),
-        legend.text = element_text(size=15),legend.key.size = unit(1,"line"),
-        legend.box.spacing = unit(0.1,"line"),
-        strip.text = element_text(size = 16, colour = "black"),
-        strip.background = element_rect(fill = "gray82"),
-        panel.grid.major = element_line(size = 0.3, colour = "gray93"),
-        panel.grid.minor = element_line(size = 0.15, colour = "gray93"),
-        axis.text.x=element_text(size=15),
-        axis.text.y=element_text(size=15),
-        axis.title.y=element_text(size=14),
-        axis.title.x=element_text(size=15),)
-UQplot
+
 
 # ggsave(filename = "results_sim/Coverageplot.png", plot=UQplot,  width = 5, height = 5)
 
