@@ -1,6 +1,6 @@
 library(msigdbr)
 
-source("helper/FACTOR_CODE_update.R")
+source("functs/FACTOR_CODE_update.R")
 
 
 get_geneSetMatrix = function(p, q){
