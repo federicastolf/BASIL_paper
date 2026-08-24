@@ -8,7 +8,6 @@ library(tidyr)
 
 rm(list=ls())
 
-# load("data_Gfever.Rdata")
 source("functs/helper.R")
 
 Y = t(data)
@@ -91,7 +90,6 @@ obspPLot = grid.arrange(p1_obs, p2_obs, nrow=1)
 basil_loadings_samples = compute_posterior_samples_cc(
   Y, fitGF$Lambda_C, fitGF$Lambda_N, fitGF$tau_gamma, fitGF$tau_psi,
   fitGF$sigma_sq, fitGF$P_C, v0=1, sigma_sq_0=1, n_MC=500)
-# save(basil_loadings_samples, file="UQ_BASIL.Rdata")
 
 # posterior samples of Gamma
 Gamma_samples = compute_Gamma_samples(basil_loadings_samples$Lambda_samples,
@@ -110,6 +108,27 @@ p_names = colnames(geneSetMat)
 data_pplot = get_topPathways(Gamma_UQ[,1:10], p_names, top_n = 5, 
                              clean_names = TRUE, ci_lower = ci_lower[,1:10],
                              ci_upper = ci_upper[,1:10])
+# write.csv(data_pplot, "topPath_gamma.csv", row.names = FALSE)
+
+#----# applying varimax #-----#
+lam = basil_loadings_samples$Lambda_samples 
+Lambda_var = vapply(
+  seq_len(dim(lam)[3]),
+  function(s) unclass(varimax(lam[, , s], normalize = TRUE)$loadings),
+  FUN.VALUE = matrix(0, nrow = dim(lam)[1], ncol = dim(lam)[2])
+)
+Gamma_samplesv = compute_Gamma_samples(Lambda_var, geneSetMat)
+ci_lowerv = apply(Gamma_samplesv, c(1, 2), quantile, probs = 0.025)
+ci_upperv = apply(Gamma_samplesv, c(1, 2), quantile, probs = 0.975)
+contains_zerov = (ci_lowerv < 0) & (ci_upperv > 0)
+table(contains_zerov)/length(contains_zerov)
+Gamma_UQv = apply(Gamma_samplesv, c(1, 2), mean)
+Gamma_UQv[contains_zerov] = 0
+data_pplotv = get_topPathways(Gamma_UQv[,1:10], p_names, top_n = 5, 
+                             clean_names = TRUE, ci_lower = ci_lowerv[,1:10],
+                             ci_upper = ci_upperv[,1:10])
+# write.csv(data_pplotv, "topPath_gamma_varimax.csv", row.names = FALSE)
+
 
 #--------# dotplot factor annontation #-----------#
 lab_pth = data_pplot$Pathway
@@ -220,7 +239,7 @@ var_explained_plot <- ggplot(df, aes(x = gene, y = prop, fill = component)) +
 
 var_explained_plot
 
-# ggsave('var_explained_plot50.png', plot=var_explained_plot, device = 'png', 
+# ggsave('var_explained_plot50.png', plot=var_explained_plot, device = 'png',
 #        width = 15, height = 7.5)
 
 

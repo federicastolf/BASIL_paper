@@ -11,6 +11,7 @@ library(AnnotationDbi)
 
 
 #--------------------------------# Load Data #---------------------------------#
+# download from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE211567
 data <- read.table(file = 'GSE211567_normData_discovery_2021MAR24.txt', 
                    sep = '\t', row.names = 1, header = TRUE)
 data[1:5, 1:5]
@@ -51,4 +52,3 @@ gr1 = which(sr==0)
 geneSetMat = geneSetMat[-gr1,]
 data = data[-gr1,]
 
-# save(data, geneSetMat, file="data_Gfever.Rdata")
