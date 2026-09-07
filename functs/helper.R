@@ -140,7 +140,8 @@ syntheticDataNB = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed,
   Eta = matrix(mu_0, nrow = n, ncol = p, byrow = TRUE) +
     M_0 %*% t(Lambda_0) +
     sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow = n)
-  Mu = exp(pmin(Eta, eta_cap))
+  # Mu = exp(pmin(Eta, eta_cap))
+  Mu = exp(Eta)
   
   # negative binomial counts
   Y_counts = matrix(rnbinom(n*p, size = size_nb, mu = as.vector(Mu)), nrow = n, ncol = p)
