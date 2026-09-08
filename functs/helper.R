@@ -20,7 +20,7 @@ get_geneSetMatrix = function(p, q){
 }
 
 
-syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, heteroscedastik=F){
+syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, heteroscedastic=F){
   
   set.seed(mseed)
   C = get_geneSetMatrix(p, q)
@@ -46,7 +46,7 @@ syntheticData = function(n, p, k, q, sigma_sq_0, sd_gamma, sd_psi, mseed, hetero
   Lambda0_outer = tcrossprod(Lambda_0)
   
   # data
-  if(!heteroscedastik){
+  if(!heteroscedastic){
     Y = M_0 %*% t(Lambda_0) + sqrt(sigma_sq_0) * matrix(rnorm(n*p), nrow=n) 
   } else {
     Y = M_0 %*% t(Lambda_0) + matrix(rnorm(n*p), nrow=n) %*% diag(sqrt(runif(p, 0.5*sigma_sq_0, 2*sigma_sq_0)))
@@ -171,15 +171,15 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
                  err_factorsPLIER_ktrue = numeric(Nsim),
                  parameters = param)
   
-  if(is.null(param$heteroscedastik)){
-    param$heteroscedastik = F
+  if(is.null(param$heteroscedastic)){
+    param$heteroscedastic = F
   }
   
   for (s in 1:Nsim) {
     # Simulate data
     datas = syntheticData(n = param$n, p = param$p, k = param$k, q = param$q,
                           sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
-                          sd_psi = param$sd_psi, mseed = seeds_g[s], heteroscedastik=param$heteroscedastik)
+                          sd_psi = param$sd_psi, mseed = seeds_g[s], heteroscedastic=param$heteroscedastic)
     Ys = datas$Y
     Cs = datas$C
     Lambda0_outer = datas$Lambda0_outer
