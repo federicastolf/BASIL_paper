@@ -393,3 +393,173 @@ plots = lapply(1:3, make_factor_plot)
 fplot_sens = grid.arrange(grobs = plots, nrow = 1)
 
 # ggsave('sens_dotplot_k.jpeg', plot = fplot_sens, width = 11, height = 4)
+
+
+
+
+###################################################################################
+###################################################################################
+
+rm(list = ls())
+
+data("dataWholeBlood",             package = "PLIER")
+data("bloodCellMarkersIRISDMAP",   package = "PLIER")
+data("canonicalPathways",          package = "PLIER")
+allPaths <- PLIER::combinePaths(bloodCellMarkersIRISDMAP, canonicalPathways)
+cm       <- intersect(rownames(dataWholeBlood), rownames(allPaths))
+allPaths <- allPaths[cm, ]
+dataWholeBlood <- dataWholeBlood[cm, ]
+
+Y <- scale(t(dataWholeBlood))    
+n <- nrow(Y)
+p <- ncol(Y)
+
+# Blom scores: qnorm((r - 3/8) / (n + 1/4)).
+int_blom <- function(x) {
+  ok <- !is.na(x)
+  z  <- rep(NA_real_, length(x))
+  r  <- rank(x[ok], ties.method = "average")
+  z[ok] <- qnorm((r - 3/8) / (sum(ok) + 1/4))
+  z
+}
+
+Y1 <- apply(Y, 2, int_blom)                 
+
+fit_orig <- BASIL_point_estimates(Y = Y,  C = allPaths, k = 8, v0 = 1, sigma_sq0 = 1)
+fit_int  <- BASIL_point_estimates(Y = Y1, C = allPaths, k = 8, v0 = 1, sigma_sq0 = 1)
+
+fits <- list(Original = fit_orig, `Rank-INT` = fit_int)
+Ys   <- list(Original = Y,        `Rank-INT` = Y1)
+
+c(Original = fit_orig$tau_gamma / fit_orig$tau_psi,
+  `Rank-INT` = fit_int$tau_gamma / fit_int$tau_psi)
+
+L_orig <- fit_orig$Lambda_C + fit_orig$Lambda_N
+L_int  <- fit_int$Lambda_C  + fit_int$Lambda_N
+
+gene_variances <- apply(t(dataWholeBlood), 2, var)
+idx      <- order(gene_variances, decreasing = TRUE)[1:100]
+Y_subset <- Y[, idx]
+
+compute_basil_corr_zeroed <- function(fit, Y, idx, v0 = 1, sigma_sq_0 = 1,
+                                      n_MC = 500, ci_level = 0.95) {
+  
+  loadings_samples <- compute_posterior_samples_cc(
+    Y = Y, Lambda_C = fit$Lambda_C, Lambda_N = fit$Lambda_N,
+    tau_gamma = fit$tau_gamma, tau_psi = fit$tau_psi, sigma_sq = fit$sigma_sq,
+    P_C = fit$P_C, v0 = v0, sigma_sq_0 = sigma_sq_0, n_MC = n_MC
+  )
+  cor_posterior <- compute_correlation_posterior_samples_cc(
+    Lambda_samples   = loadings_samples$Lambda_samples[idx, TRUE, TRUE],
+    sigma_sq_samples = loadings_samples$sigma_sq_samples, samples = TRUE
+  )
+  
+  corr_mean        <- cor_posterior$posterior_mean
+  corr_mean_zeroed <- corr_mean
+  alpha   <- 1 - ci_level
+  corr_qs <- apply(cor_posterior$posterior_samples, c(1, 2), quantile,
+                   probs = c(alpha / 2, 1 - alpha / 2))
+  corr_mean_zeroed[(corr_qs[1, , ] < 0) & (corr_qs[2, , ] > 0)] <- 0
+  
+  list(loadings_samples = loadings_samples, cor_posterior = cor_posterior,
+       corr_mean = corr_mean, corr_mean_zeroed = corr_mean_zeroed,
+       prop_zeroed = mean(corr_mean_zeroed == 0))
+}
+
+results <- Map(function(f, YY) compute_basil_corr_zeroed(f, Y = YY, idx = idx),
+               fits, Ys)
+
+for (nm in names(results)) {
+  dimnames(results[[nm]]$corr_mean)        <- list(colnames(Y_subset), colnames(Y_subset))
+  dimnames(results[[nm]]$corr_mean_zeroed) <- list(colnames(Y_subset), colnames(Y_subset))
+}
+print(sapply(results, function(x) x$prop_zeroed))
+
+# correlation heatmaps 
+cols   <- scico(51, palette = "vik")
+breaks <- seq(-1, 1, length.out = 52)
+
+Corr_empirical <- cor(Y_subset)
+emp_corr_plot  <- plot_correlation_heatmap(Corr_empirical, title = "Empirical",
+                                           cluster = TRUE, breaks = breaks)
+row_order <- emp_corr_plot$tree_row$order
+col_order <- emp_corr_plot$tree_col$order
+
+hm <- function(M, ttl) plot_correlation_heatmap(M, title = ttl, row_order = row_order,
+                                                col_order = col_order, breaks = breaks)
+
+LAB_INT <- "Normalized"
+
+p_uq_orig <- hm(results[["Original"]]$corr_mean_zeroed, "Original")
+p_uq_int  <- hm(results[["Rank-INT"]]$corr_mean_zeroed, LAB_INT)
+p_pm_orig <- hm(results[["Original"]]$corr_mean,        "Original")
+p_pm_int  <- hm(results[["Rank-INT"]]$corr_mean,        LAB_INT)
+
+corrWB <- grid.arrange(p_uq_orig$gtable, p_uq_int$gtable,
+                       p_pm_orig$gtable, p_pm_int$gtable, ncol = 2)
+ggsave('sensNorm_corr.jpeg', plot = corrWB, width = 9, height = 9)
+
+## pathway gamma  
+p_names <- colnames(allPaths)
+idf_fa  <- 1:3
+
+gamma_summary <- function(res) {
+  G_s <- compute_Gamma_samples(res$loadings_samples$Lambda_samples, allPaths)
+  lo  <- apply(G_s, c(1, 2), quantile, probs = 0.025)
+  hi  <- apply(G_s, c(1, 2), quantile, probs = 0.975)
+  G   <- apply(G_s, c(1, 2), mean)
+  G[(lo < 0) & (hi > 0)] <- 0
+  list(G = G, lo = lo, hi = hi, prop_zeroed = mean((lo < 0) & (hi > 0)))
+}
+
+gam <- lapply(results, gamma_summary)
+print(sapply(gam, function(x) x$prop_zeroed))
+
+TOP_N <- 5
+
+build_union <- function(f) {
+  top_idx <- function(G) order(abs(G[, f]), decreasing = TRUE)[seq_len(TOP_N)]
+  idx_u   <- union(top_idx(gam$Original$G), top_idx(gam$`Rank-INT`$G))
+  
+  bind_rows(
+    data.frame(Pathway = p_names[idx_u], Loading = gam$Original$G[idx_u, f],
+               Factor_num = f, Data = "Original", stringsAsFactors = FALSE),
+    data.frame(Pathway = p_names[idx_u], Loading = gam$`Rank-INT`$G[idx_u, f],
+               Factor_num = f, Data = "Rank-INT", stringsAsFactors = FALSE)
+  )
+}
+
+data_combined <- bind_rows(lapply(idf_fa, build_union)) %>%
+  mutate(AbsLoading      = abs(Loading),
+         Pathway_wrapped = str_wrap(str_trunc(gsub("_", " ", Pathway), 90), width = 30),
+         Data            = factor(Data, levels = c("Original", "Rank-INT")))
+
+# plot
+make_factor_plot <- function(f_num) {
+  df  <- data_combined %>% filter(Factor_num == f_num)
+  ord <- df %>% group_by(Pathway_wrapped) %>%
+    summarise(order_val = max(AbsLoading), .groups = "drop") %>%
+    arrange(desc(order_val)) %>% pull(Pathway_wrapped)
+  
+  df <- df %>% mutate(rank  = match(Pathway_wrapped, ord),
+                      y_num = rank + ifelse(Data == "Original", -0.15, 0.15))
+  
+  ggplot(df, aes(x = AbsLoading, y = y_num, shape = Data)) +
+    geom_point(size = 2.5, colour = "black", stroke = 0.9) +
+    scale_shape_manual(values = c("Original" = 16, "Rank-INT" = 4)) +
+    scale_y_continuous(breaks = seq_along(ord), labels = ord, trans = "reverse") +
+    coord_cartesian(xlim = c(0, max(data_combined$AbsLoading) * 1.05)) +
+    labs(x = "Absolute loading", y = NULL, shape = NULL,
+         title = paste0("Factor ", f_num)) +
+    theme_minimal(base_size = 11) +
+    theme(plot.title   = element_text(face = "bold", hjust = 0.5, size = 11),
+          legend.position = "none",
+          axis.text.y  = element_text(size = 8, lineheight = 0.8))
+}
+
+plots      <- lapply(idf_fa, make_factor_plot)
+fplot_sens <- grid.arrange(grobs = plots, nrow = 1)
+
+# ggsave('sens_dotplotNorm.jpeg', plot = fplot_sens, width = 11, height = 5)
+
+
