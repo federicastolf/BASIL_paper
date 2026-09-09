@@ -160,7 +160,8 @@ run_coverage_simulationNB = function(param, scenario_name, subsample_index, alph
   }
   
   res_list = mclapply(1:Nsim, one_sim, mc.cores = ncores, mc.preschedule = FALSE)
-  
+  ok = !vapply(res_list, inherits, logical(1), "try-error")
+                 
   coverage_df = do.call(rbind, res_list[ok])
   coverage_df$scenario = scenario_name
   coverage_df$p = as.character(param$p)
