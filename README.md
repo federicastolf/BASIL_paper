@@ -37,7 +37,7 @@ install_github("federicastolf/BASIL")
 - [spectra_sim.R](simulations/spectra_sim.R) and [spectraFit_sim.py](simulations/spectraFit_sim.py): comparison against Spectra
 
 ### Data analyses
-- [getGFdata.R](getGFdata.R): file to obtain the global fever data (GSE211567)
-- [GFeverAnalysis.R](GFeverAnalysis.R): file to replicate the analysis on global fever data
-- [scRNAseq_data.R](scRNAseq_data.R): file to replicate the scRNA-seq data analysis
+- [getGFdata.R](getGFdata.R): obtain the global fever data (GSE211567)
+- [GFeverAnalysis.R](GFeverAnalysis.R): replicate the analysis on global fever data
+- [scRNAseq_data.R](scRNAseq_data.R): replicate the scRNA-seq data analysis
 - [sensitivity_WB.R](sensitivity_WB.R): sensitivity analyses on the whole-blood data 
