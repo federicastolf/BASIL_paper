@@ -1,4 +1,5 @@
 library(PLIER)
+library(dplyr)
 # library(devtools)
 # install_github("federicastolf/BASIL")
 library(BASIL)
@@ -193,6 +194,4 @@ SimUQ = rbind(coverage_high_p3000, coverage_low_p3000, coverage_high_p1000,
   coverage_low_p1000)
 
 
-
-# ggsave(filename = "results_sim/Coverageplot.png", plot=UQplot,  width = 5, height = 5)
 
