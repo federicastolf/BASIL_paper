@@ -89,10 +89,14 @@ df_high_p5000 = run_simulation_study(param7,scenario_name = "high", Nsim = Nsim,
 
 Time_temp = Simboxplot_df %>% filter(scenario=="high")
 TimeSim = rbind(Time_temp, df_high_p4000, df_high_p2000, df_high_p5000)
-TimeSim = TimeSim %>% dplyr::select(time, model, p)
+TimeSim = TimeSim %>%
+  filter(model %in% names(model_cols)) %>%
+  dplyr::select(time, model, p)
 
 #--# plot
-Timeavg = TimeSim %>% group_by(model,p) %>% summarise(mean = mean(time))
+Timeavg = TimeSim %>%
+  group_by(model, p) %>%
+  summarise(mean = mean(time), .groups = "drop")
 Timeavg$p = as.numeric(Timeavg$p)
 Timeplot = ggplot(Timeavg, aes(x = p, y = log(mean), color = model, group = model)) + 
   geom_point() + geom_line() +
