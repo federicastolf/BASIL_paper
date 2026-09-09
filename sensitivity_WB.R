@@ -497,7 +497,7 @@ p_pm_int  <- hm(results[["Rank-INT"]]$corr_mean,        LAB_INT)
 
 corrWB <- grid.arrange(p_uq_orig$gtable, p_uq_int$gtable,
                        p_pm_orig$gtable, p_pm_int$gtable, ncol = 2)
-ggsave('sensNorm_corr.jpeg', plot = corrWB, width = 9, height = 9)
+# ggsave('sensNorm_corr.jpeg', plot = corrWB, width = 9, height = 9)
 
 ## pathway gamma  
 p_names <- colnames(allPaths)
