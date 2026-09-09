@@ -9,6 +9,7 @@ library(tidyr)
 rm(list=ls())
 
 source("functs/helper.R")
+load("data_Gfever.Rdata")
 
 Y = t(data)
 Y = scale(Y)
