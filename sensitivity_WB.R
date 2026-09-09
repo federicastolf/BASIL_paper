@@ -335,8 +335,8 @@ data_pplot8 = get_topPathways(Gamma_UQ8[,idf_fa], p_names, top_n = 5,
 # 12
 Gamma_postsamples12 = compute_Gamma_samples(results[["12"]]$loadings_samples$Lambda_samples,
                                             allPaths)
-ci_lowerG12 = apply(Gamma_postsamples8, c(1, 2), quantile, probs = 0.025)
-ci_upperG12 = apply(Gamma_postsamples8, c(1, 2), quantile, probs = 0.975)
+ci_lowerG12 = apply(Gamma_postsamples12, c(1, 2), quantile, probs = 0.025)
+ci_upperG12 = apply(Gamma_postsamples12, c(1, 2), quantile, probs = 0.975)
 contains_zeroG12 = (ci_lowerG12 < 0) & (ci_upperG12 > 0)
 table(contains_zeroG12)/length(contains_zeroG12) 
 Gamma_UQ12 = apply(Gamma_postsamples12, c(1, 2), mean)
