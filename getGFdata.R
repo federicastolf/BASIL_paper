@@ -52,3 +52,4 @@ gr1 = which(sr==0)
 geneSetMat = geneSetMat[-gr1,]
 data = data[-gr1,]
 
+save(data, geneSetMat, file = "data_Gfever.Rdata")
