@@ -45,8 +45,12 @@ Simboxplot_df = rbind(df_high_p3000, df_low_p3000, df_high_p1000, df_low_p1000)
 #------# MSE boxplot #-------#
 
 nl = c("1000"="1000 genes", "3000"="3000 genes")
+model_cols = c("BASIL_posterior" = "#009E73",
+               "PLIER"           = "#c85200",
+               "ROTATE"          = "#1170aa")
 
-Fnplot = ggplot(Simboxplot_df, aes(x = scenario, y = err_norm, fill = model))+
+Fnplot = ggplot(Simboxplot_df %>% filter(model %in% names(model_cols)),
+                aes(x = scenario, y = err_norm, fill = model))+
   geom_boxplot(alpha=0.7) +
   scale_fill_manual(values =c("#009E73", "#c85200","#1170aa")) +
   facet_wrap(~ p, scales = "fixed", labeller = as_labeller(nl)) +
@@ -142,7 +146,8 @@ for(g in 1:length(sd_gammaL)){
 
 ## plot
 vR = c(t(ratio))
-sig = rep(1:9, each = 2)
+# sig = rep(1:9, each = 2)
+sig = rep(seq_along(sd_gammaL), each = Nsim)
 dataPlot_bs = cbind.data.frame(vR,sig)
 
 p_bs = ggplot(dataPlot_bs, aes(y = vR, group = sig))+
