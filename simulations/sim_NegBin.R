@@ -213,7 +213,7 @@ coverage_sparse30_nb = run_coverage_simulationNB(param1_nb, scenario_name = "spa
 
 coverage_sparse50_nb = run_coverage_simulationNB(param2_nb, scenario_name = "sparsity50",
                                                  subsample_index, alpha = 0.05,
-                                                 Nsim = Nsim, seed = 463, ncores = ncores)
+                                                 Nsim = Nsimc, seed = 463, ncores = ncores)
 SimUQ_nb = rbind(coverage_sparse30_nb, coverage_sparse50_nb)
 aggregate(cbind(coverage, width, zero_frac) ~ scenario, data = SimUQ_nb, FUN = mean)
 aggregate(cbind(coverage, width) ~ scenario, data = SimUQ_nb, FUN = sd)
