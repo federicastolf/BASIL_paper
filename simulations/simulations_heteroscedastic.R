@@ -11,7 +11,7 @@ rm(list=ls())
 source("functs/helper.R")
 
 #------------------------------------------------------------------------------#
-#------------# accuracy covariance and k simulations (Fig 2a, 2c) #------------#
+#------------# accuracy covariance and k simulations (Fig S3) #------------#
 
 Nsim = 25
 
@@ -115,29 +115,37 @@ latent_factors_plot
 
 
 #------------------------------------------------------------------------------#
-#-----------------# Uncertainty quantification (Fig 2d) #----------------------#
+#-----------------# Uncertainty quantification (tab S2) #----------------------#
 
 subsample_size = 200
 subsample_index = 1:subsample_size
 
 # Setting 1: High biological signal, p=3000
-coverage_high_p3000_het <- run_coverage_simulation(param1, scenario_name = "high", 
-                                               subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+coverage_high_p3000_het <- run_coverage_simulation(
+  param1, scenario_name = "high", subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 2: Low biological signal, p=3000
 coverage_low_p3000_het <- run_coverage_simulation(param2, scenario_name = "low", 
-                                              subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+                                                  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 3: High biological signal, p=1000
 coverage_high_p1000_het <- run_coverage_simulation(param3, scenario_name = "high", 
-                                               subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+                                                   subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 # Setting 4: Low biological signal, p=1000
 coverage_low_p1000_het <- run_coverage_simulation(param4, scenario_name = "low", 
-                                              subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
+                                                  subsample_index, alpha = 0.05, Nsim = Nsim, seed = 463)
 
 SimUQ_het = rbind(coverage_high_p3000_het, coverage_low_p3000_het, coverage_high_p1000_het,
-              coverage_low_p1000_het)
+                  coverage_low_p1000_het)
+
+SimUQ_het  |>
+  dplyr::group_by( scenario, p) |>
+  dplyr::summarise(
+    mean = mean(coverage , na.rm = TRUE),
+    sd   = sd(coverage , na.rm = TRUE),
+    .groups = "drop"
+  )
 
 UQplot_het = ggplot(SimUQ_het, aes(x = scenario, y = coverage))+
   geom_boxplot(alpha=0.7, fill="lightblue") +

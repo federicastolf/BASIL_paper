@@ -285,6 +285,7 @@ run_simulation_study = function(param, scenario_name, Nsim, seed) {
   
   return(df_combined)
 }
+
 # Function to run coverage simulation
 run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha, 
                                     Nsim, seed){
@@ -293,12 +294,17 @@ run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha
   seeds_g <- sample.int(9000, Nsim)
   ccCoverage <- numeric(Nsim)
   
+  if(is.null(param$heteroscedastic)){
+    param$heteroscedastic = F
+  }
+  
+  
   # Run simulations
   for (s in 1:Nsim) {
     # Simulate data
     datas <- syntheticData(n = param$n, p = param$p, k = param$k, q = param$q,
                            sigma_sq_0 = param$sigma_sq_0, sd_gamma = param$sd_gamma,
-                           sd_psi = param$sd_psi, mseed = seeds_g[s])
+                           sd_psi = param$sd_psi, mseed = seeds_g[s], heteroscedastic=param$heteroscedastic)
     Ys <- datas$Y
     Cs <- datas$C
     Lambda0_outer <- datas$Lambda0_outer
@@ -329,7 +335,6 @@ run_coverage_simulation <- function(param, scenario_name, subsample_index, alpha
   
   return(coverage_df)
 }
-
 
 # Function to create scatter plot with identity line
 plot_correlation_scatter = function(data, title, lim_ax, point_color = "#1170aa") {
