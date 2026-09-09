@@ -37,7 +37,7 @@ run_simulation_studyNB = function(param, scenario_name, Nsim, seed, ncores = 6) 
     Ys = matrix(scale(datas$Y), nrow = param$n)
     colnames(Ys) = colnames(datas$Y)
     Cs = datas$C
-    Lambda0_outer = datas$Lambda0_outers
+    Lambda0_outer = datas$Lambda0_outer
     
     R0 = cor_from_outer(Lambda0_outer, param$sigma_sq_0)
     
@@ -89,6 +89,7 @@ run_simulation_studyNB = function(param, scenario_name, Nsim, seed, ncores = 6) 
   }
   
   res_list = mclapply(1:Nsim, one_sim, mc.cores = ncores, mc.preschedule = FALSE)
+  ok = !vapply(res_list, inherits, logical(1), "try-error")
   
   df_combined = do.call(rbind, res_list[ok])
   df_combined$scenario = scenario_name
