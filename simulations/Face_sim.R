@@ -53,15 +53,18 @@ run_simFACE = function(s, param, subsample_index, alpha_cov) {
                              my.seed = 100 + s, alpha = 5, a.theta = 1/2,
                              b.theta = 1/2, which.cov.group = NA)
   etmF = proc.time() - ptmF
-  Lambda.mean = matrix(colMeans(out.cmr.cusp$Lambda), nrow = p, ncol = kF)
-  err_FACE = norm(tcrossprod(Lambda.mean) - Lambda0_outer, type = "F") /
+  cov_mean_FACE = matrix(colMeans(out.cmr.cusp$cov), nrow = p, ncol = p)
+  diag(cov_mean_FACE) = diag(cov_mean_FACE) - colMeans(out.cmr.cusp$D)
+  err_FACE = norm(cov_mean_FACE - Lambda0_outer, type = "F") /
     norm(Lambda0_outer, type = "F")
   
   # coverage
   n.draws = nrow(out.cmr.cusp$cov)
   sub.draws = sapply(1:n.draws, function(i) {
     cov.mat = matrix(out.cmr.cusp$cov[i, ], nrow = p, ncol = p)
-    cov.mat[subsample_index, subsample_index]
+    sub.mat = cov.mat[subsample_index, subsample_index]
+    diag(sub.mat) = diag(sub.mat) - out.cmr.cusp$D[i, subsample_index]
+    sub.mat
   }, simplify = "array")
   Lambda_outer_qs_FACE = apply(
     sub.draws, c(1, 2),
