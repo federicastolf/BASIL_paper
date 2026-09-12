@@ -2,6 +2,7 @@ library(PLIER)
  #library(devtools)
  #install_github("federicastolf/BASIL")
 library(BASIL)
+library(dplyr)
 library(ggplot2)
 library(latex2exp)
 
