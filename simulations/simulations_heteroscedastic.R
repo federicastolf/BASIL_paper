@@ -4,6 +4,7 @@ library(PLIER)
 # install_github("federicastolf/BASIL")
 library(BASIL)
 library(ggplot2)
+library(dplyr)
 library(latex2exp)
 
 rm(list=ls())
