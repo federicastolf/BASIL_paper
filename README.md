@@ -1,8 +1,7 @@
 # BASIL paper
 
 This repository contains the code to replicate the simulation studies and the data
-analyses in the paper *Pathway-based Bayesian factor models for omics data*
-([arXiv:2601.13419](https://arxiv.org/abs/2601.13419)).
+analyses in the paper *Pathway-based Bayesian factor models for omics data*.
 
 ## `BASIL` package
 
